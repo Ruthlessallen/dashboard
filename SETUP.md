@@ -32,19 +32,9 @@ Es el único paso manual. Una vez hecho, se autoguarda.
 
 ---
 
-## 2. InfoJobs (Ofertas junior)
+## 2. Manfred (Ofertas tech)
 
-Los permisos te los dan instantáneamente.
-
-1. Entra en <https://www.infojobs.net/api/dev>
-2. **Registra una aplicación**:
-   - Nombre: `Ruth Dashboard`
-   - Sitio web: `http://localhost:3111`
-3. Copia tu **API Key** a `.env.local`:
-   ```
-   INFOJOBS_API_KEY=...
-   ```
-4. Reinicia. El panel de ofertas cargará al instante.
+No requiere configuración: el panel de ofertas de Manfred carga solo, vía su API pública.
 
 ---
 
@@ -59,25 +49,20 @@ Esta es la vía **sin riesgo** para no perder ofertas de LinkedIn:
    (O lo que se ajuste a tu búsqueda)
 3. La frecuencia: **diaria** o **al momento** — LinkedIn te las envía por correo
 4. **Gmail las recoge automáticamente** (ya estás conectado)
-5. El dashboard leería esos correos y te sacaría un panel
-
-Eso es future, ahora solo existe la infraestructura para conectar Gmail.
+5. El dashboard lee esos correos y los saca en el panel de Ofertas
 
 ---
 
 ## Cronograma sugerido
 
-**Hoy**: 
+**Hoy**:
 - Google OAuth (10 min)
-- InfoJobs (2 min)
-
-**En una semana** (cuando LinkedIn te haya mandado al menos 5 ofertas):
-- Parsear el correo de alertas de LinkedIn y convertirlo en panel
+- Crear las alertas de empleo en LinkedIn (2 min)
 
 ---
 
 ## Si algo falla
 
 - `npm run dev` sin salida: error al compilar. Mira `stderr`.
-- Ofertas vacías: revisa que `.env.local` tenga la clave de InfoJobs.
+- Ofertas de LinkedIn vacías: revisa que hayas creado alertas de empleo y que Gmail esté conectado.
 - Gmail sin conectar: copia `.env.local.example` a `.env.local` si no lo has hecho.

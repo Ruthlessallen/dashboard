@@ -2,7 +2,7 @@
 
 Panel personal en local que unifica Gmail, Google Calendar, agregador de noticias de IA/data/web, ofertas de empleo y checklists en una sola pantalla.
 
-![Vista del dashboard](dashboard_blurred.png)
+![Vista del dashboard](dashboard.png)
 
 ## Motivación
 
@@ -12,7 +12,7 @@ Sustituye la rutina de abrir Gmail, Calendar, varias webs de noticias y una list
 
 - **Gmail + Google Calendar**: lectura de correo y agenda vía OAuth2 (permisos de solo lectura, `gmail.readonly` / `calendar.readonly`).
 - **Agregador de noticias**: fuentes RSS configurables por categoría (IA / data / web) + Hacker News vía la API de Algolia, filtrado por puntuación y palabras clave. Caché de 15 minutos y aviso si alguna fuente falla.
-- **Ofertas de empleo**: integración con la API de InfoJobs.
+- **Ofertas de empleo**: API pública de [Manfred](https://www.getmanfred.com/) (sin configuración) + alertas de empleo de LinkedIn leídas automáticamente desde Gmail.
 - **Checklists**: listas fijas (General, Diaria con reinicio automático) y listas personalizadas ilimitadas.
 - **Datos 100% locales**: todo se persiste en SQLite en disco; los tokens OAuth nunca salen del equipo.
 
@@ -23,7 +23,7 @@ Sustituye la rutina de abrir Gmail, Calendar, varias webs de noticias y una list
 | Framework | [Next.js](https://nextjs.org/) 16 (App Router) |
 | UI | [React](https://react.dev/) 19 |
 | Base de datos | SQLite vía el módulo nativo [`node:sqlite`](https://nodejs.org/api/sqlite.html) de Node 24 — sin drivers externos ni compilación nativa |
-| Integraciones | [`googleapis`](https://www.npmjs.com/package/googleapis) (OAuth2, Gmail API, Calendar API), [`rss-parser`](https://www.npmjs.com/package/rss-parser), API de InfoJobs, API de Algolia (Hacker News) |
+| Integraciones | [`googleapis`](https://www.npmjs.com/package/googleapis) (OAuth2, Gmail API, Calendar API), [`rss-parser`](https://www.npmjs.com/package/rss-parser), API pública de Manfred, API de Algolia (Hacker News) |
 | Runtime | Node.js 24+ |
 
 Proyecto 100% JavaScript (JSX), sin dependencias de UI de terceros: estilos con CSS plano y componentes React hechos a mano.
@@ -88,13 +88,9 @@ cp .env.local.example .env.local
 
 Los permisos son solo de lectura: el dashboard no puede enviar correo ni modificar la agenda.
 
-### Ofertas de empleo (InfoJobs)
+### Ofertas de empleo
 
-1. Regístrate en el [API de InfoJobs](https://www.infojobs.net/api/dev) y crea una aplicación.
-2. Copia tu API Key a `.env.local`:
-   ```
-   INFOJOBS_API_KEY=...
-   ```
+Manfred funciona sin configurar nada (API pública). Para LinkedIn, crea alertas de empleo en LinkedIn (**Mis empleos → Alertas de empleo**) con frecuencia diaria o al momento: el dashboard lee esos correos directamente de tu Gmail ya conectado y extrae las ofertas.
 
 ### Fuentes de noticias
 

@@ -15,6 +15,9 @@ export async function PATCH(req, { params }) {
   if (typeof body.position === 'number') {
     db.prepare('UPDATE items SET position = ? WHERE id = ?').run(body.position, Number(id));
   }
+  if (typeof body.checklist_id === 'number') {
+    db.prepare('UPDATE items SET checklist_id = ? WHERE id = ?').run(body.checklist_id, Number(id));
+  }
 
   const row = db.prepare('SELECT * FROM items WHERE id = ?').get(Number(id));
   return Response.json({ ...row, done: Boolean(row.done) });

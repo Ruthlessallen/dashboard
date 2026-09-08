@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { api } from './util.js';
 
 function AddItem({ checklistId, onAdd }) {
@@ -37,10 +37,9 @@ function AddItem({ checklistId, onAdd }) {
   );
 }
 
-function List({ list, refresh }) {
-  const [items, setItems] = useState(list.items);
-  const [dragIdx, setDragIdx] = useState(null);
+function List({ list, items, setItems, dragItem, setDragItem, moveItem, refresh }) {
   const [overIdx, setOverIdx] = useState(null);
+  const [overEnd, setOverEnd] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [editText, setEditText] = useState('');
   const [collapsed, setCollapsed] = useState(() => {
@@ -52,6 +51,7 @@ function List({ list, refresh }) {
   });
   const done = items.filter((i) => i.done).length;
   const pct = items.length ? (done / items.length) * 100 : 0;
+  const isForeignDrag = dragItem && dragItem.fromListId !== list.id;
 
   function toggleCollapsed() {
     setCollapsed((c) => {
@@ -104,13 +104,15 @@ function List({ list, refresh }) {
     }
   }
 
-  async function reorder(fromIdx, toIdx) {
-    if (fromIdx === toIdx || fromIdx == null || toIdx == null) return;
+  // Reordenar dentro de la misma lista (por id, no por indice, para evitar
+  // condiciones de carrera con el setItems funcional de arriba).
+  async function reorderById(itemId, toIdx) {
+    const fromIdx = items.findIndex((i) => i.id === itemId);
+    if (fromIdx === -1 || fromIdx === toIdx) return;
     const prev = items;
     const next = [...items];
     const [moved] = next.splice(fromIdx, 1);
     next.splice(toIdx, 0, moved);
-    // Reasignamos posiciones secuenciales segun el nuevo orden visual
     const reindexed = next.map((it, i) => ({ ...it, position: i }));
     setItems(reindexed);
 
@@ -122,7 +124,7 @@ function List({ list, refresh }) {
         )
       );
     } catch {
-      setItems(prev); // revertir si falla
+      setItems(prev);
     }
   }
 
@@ -130,6 +132,34 @@ function List({ list, refresh }) {
     if (!confirm(`¿Borrar la lista "${list.name}" y sus ${items.length} tareas?`)) return;
     await api(`/api/checklists/${list.id}`, { method: 'DELETE' });
     refresh();
+  }
+
+  function handleItemDrop(e, toIdx) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!dragItem) return;
+    if (dragItem.fromListId === list.id) {
+      reorderById(dragItem.itemId, toIdx);
+    } else {
+      moveItem(dragItem, list.id, toIdx);
+    }
+    setDragItem(null);
+    setOverIdx(null);
+    setOverEnd(false);
+  }
+
+  function handleEndDrop(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!dragItem) return;
+    if (dragItem.fromListId === list.id) {
+      reorderById(dragItem.itemId, items.length - 1);
+    } else {
+      moveItem(dragItem, list.id, items.length);
+    }
+    setDragItem(null);
+    setOverIdx(null);
+    setOverEnd(false);
   }
 
   return (
@@ -158,26 +188,32 @@ function List({ list, refresh }) {
 
       {!collapsed && (
         <>
-          <div className="body">
-            {items.length === 0 && <div className="empty">Sin tareas todavía.</div>}
+          <div
+            className="body"
+            onDragOver={(e) => { if (dragItem) e.preventDefault(); }}
+            onDrop={handleEndDrop}
+          >
+            {items.length === 0 && (
+              <div
+                className={`empty${isForeignDrag ? ' drag-over' : ''}`}
+                onDragOver={(e) => { e.preventDefault(); if (isForeignDrag) setOverEnd(true); }}
+                onDragLeave={() => setOverEnd(false)}
+              >
+                {isForeignDrag ? 'Suelta aquí para mover la tarea' : 'Sin tareas todavía.'}
+              </div>
+            )}
             {items.map((item, idx) => (
               <div
                 key={item.id}
-                className={`check${item.done ? ' done' : ''} draggable-item${overIdx === idx && dragIdx !== null && dragIdx !== idx ? ' drag-over' : ''}`}
+                className={`check${item.done ? ' done' : ''} draggable-item${overIdx === idx && dragItem && !(dragItem.fromListId === list.id && dragItem.itemId === item.id) ? ' drag-over' : ''}`}
                 draggable={editingId !== item.id}
-                onDragStart={() => setDragIdx(idx)}
-                onDragOver={(e) => { e.preventDefault(); if (dragIdx !== null) setOverIdx(idx); }}
+                onDragStart={() => setDragItem({ itemId: item.id, fromListId: list.id, text: item.text })}
+                onDragOver={(e) => { e.preventDefault(); if (dragItem) setOverIdx(idx); }}
                 onDragLeave={() => setOverIdx((o) => (o === idx ? null : o))}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  if (dragIdx !== null) reorder(dragIdx, idx);
-                  setDragIdx(null);
-                  setOverIdx(null);
-                }}
-                onDragEnd={() => { setDragIdx(null); setOverIdx(null); }}
+                onDrop={(e) => handleItemDrop(e, idx)}
+                onDragEnd={() => { setDragItem(null); setOverIdx(null); setOverEnd(false); }}
               >
-                <span className="handle" title="Arrastra para reordenar">⠿</span>
+                <span className="handle" title="Arrastra para reordenar o mover a otra lista">⠿</span>
                 <input type="checkbox" checked={item.done} onChange={() => toggle(item)} />
                 {editingId === item.id ? (
                   <input
@@ -204,6 +240,14 @@ function List({ list, refresh }) {
                 <button className="btn ghost del" onClick={() => remove(item)} title="Eliminar">✕</button>
               </div>
             ))}
+            {isForeignDrag && items.length > 0 && (
+              <div
+                className={`drop-tail${overEnd ? ' drag-over' : ''}`}
+                onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setOverEnd(true); }}
+                onDragLeave={() => setOverEnd(false)}
+                onDrop={handleEndDrop}
+              />
+            )}
           </div>
 
           <AddItem checklistId={list.id} onAdd={(it) => setItems((xs) => [...xs, it])} />
@@ -216,6 +260,63 @@ function List({ list, refresh }) {
 export default function Checklists({ lists, refresh }) {
   const [name, setName] = useState('');
   const [adding, setAdding] = useState(false);
+  const [itemsByList, setItemsByList] = useState(() =>
+    Object.fromEntries(lists.map((l) => [l.id, l.items]))
+  );
+  const [dragItem, setDragItem] = useState(null);
+
+  // Sincroniza cuando cambia el conjunto de listas (crear/borrar lista),
+  // preservando el estado local de las listas que ya conociamos (para no
+  // perder ediciones optimistas en curso).
+  useEffect(() => {
+    setItemsByList((prev) => {
+      const next = {};
+      for (const l of lists) {
+        next[l.id] = prev[l.id] !== undefined ? prev[l.id] : l.items;
+      }
+      return next;
+    });
+  }, [lists]);
+
+  function setItemsFor(listId) {
+    return (updater) => {
+      setItemsByList((prev) => ({
+        ...prev,
+        [listId]: typeof updater === 'function' ? updater(prev[listId] || []) : updater,
+      }));
+    };
+  }
+
+  async function moveItem(drag, toListId, toIdx) {
+    const { itemId, fromListId } = drag;
+    if (fromListId === toListId) return;
+    const prevState = itemsByList;
+    const fromItems = itemsByList[fromListId] || [];
+    const moved = fromItems.find((i) => i.id === itemId);
+    if (!moved) return;
+
+    const newFrom = fromItems.filter((i) => i.id !== itemId).map((it, i) => ({ ...it, position: i }));
+    const toItems = itemsByList[toListId] || [];
+    const newTo = [...toItems];
+    const clampedIdx = Math.max(0, Math.min(toIdx, newTo.length));
+    newTo.splice(clampedIdx, 0, { ...moved, checklist_id: toListId });
+    const reindexedTo = newTo.map((it, i) => ({ ...it, position: i }));
+
+    setItemsByList((prev) => ({ ...prev, [fromListId]: newFrom, [toListId]: reindexedTo }));
+
+    try {
+      await api(`/api/items/${itemId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ checklist_id: toListId, position: clampedIdx }),
+      });
+      await Promise.all([
+        ...newFrom.map((it) => api(`/api/items/${it.id}`, { method: 'PATCH', body: JSON.stringify({ position: it.position }) })),
+        ...reindexedTo.filter((it) => it.id !== itemId).map((it) => api(`/api/items/${it.id}`, { method: 'PATCH', body: JSON.stringify({ position: it.position }) })),
+      ]);
+    } catch {
+      setItemsByList(prevState);
+    }
+  }
 
   async function createList(e) {
     e.preventDefault();
@@ -232,18 +333,31 @@ export default function Checklists({ lists, refresh }) {
   const dailyList = lists.find((l) => l.kind === 'daily');
   const customLists = lists.filter((l) => l.kind === 'custom');
 
+  function renderList(l) {
+    return (
+      <List
+        key={l.id}
+        list={l}
+        items={itemsByList[l.id] || []}
+        setItems={setItemsFor(l.id)}
+        dragItem={dragItem}
+        setDragItem={setDragItem}
+        moveItem={moveItem}
+        refresh={refresh}
+      />
+    );
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '18px', minHeight: 0 }}>
       {/* Split vertical: General y Daily */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '18px', flex: 1, minHeight: 0 }}>
-        {generalList && <List list={generalList} refresh={refresh} />}
-        {dailyList && <List list={dailyList} refresh={refresh} />}
+        {generalList && renderList(generalList)}
+        {dailyList && renderList(dailyList)}
       </div>
 
       {/* Custom lists */}
-      {customLists.map((l) => (
-        <List key={l.id} list={l} refresh={refresh} />
-      ))}
+      {customLists.map((l) => renderList(l))}
 
       {adding ? (
         <form className="card" onSubmit={createList}>

@@ -49,10 +49,16 @@ export default function Dashboard() {
 
     const onMove = (ev) => {
       const { idx, startX, base } = resizeState.current;
-      const dx = ev.clientX - startX;
+      // El ancho se traspasa solo entre las dos columnas vecinas, nunca se
+      // crea ni se quita ancho total: asi ensanchar una nunca empuja el
+      // resto fuera de la pantalla. dx se recorta para que ninguna de las
+      // dos baje del minimo.
+      const maxGrow = base[idx + 1] - MIN_COL_PX;
+      const maxShrink = base[idx] - MIN_COL_PX;
+      const dx = Math.min(Math.max(ev.clientX - startX, -maxShrink), maxGrow);
       const next = [...base];
-      next[idx] = Math.max(MIN_COL_PX, base[idx] + dx);
-      next[idx + 1] = Math.max(MIN_COL_PX, base[idx + 1] - dx);
+      next[idx] = base[idx] + dx;
+      next[idx + 1] = base[idx + 1] - dx;
       setColPx(next);
     };
     const onUp = () => {

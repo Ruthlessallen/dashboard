@@ -37,7 +37,7 @@ function AddItem({ checklistId, onAdd }) {
   );
 }
 
-function List({ list, items, setItems, dragItem, setDragItem, moveItem, refresh }) {
+function List({ list, items, setItems, dragItem, setDragItem, moveItem, refresh, onMoveUp, onMoveDown, canMoveUp, canMoveDown }) {
   const [overIdx, setOverIdx] = useState(null);
   const [overEnd, setOverEnd] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -173,6 +173,10 @@ function List({ list, items, setItems, dragItem, setDragItem, moveItem, refresh 
         >
           ▾
         </button>
+        <div className="col-order" onClick={(e) => e.stopPropagation()}>
+          <button className="btn ghost" onClick={onMoveUp} disabled={!canMoveUp} title="Subir lista">▲</button>
+          <button className="btn ghost" onClick={onMoveDown} disabled={!canMoveDown} title="Bajar lista">▼</button>
+        </div>
         <h2>{list.name}</h2>
         {list.kind === 'daily' && <span className="badge">se reinicia cada día</span>}
         <span className="spacer" />
@@ -264,6 +268,18 @@ export default function Checklists({ lists, refresh }) {
     Object.fromEntries(lists.map((l) => [l.id, l.items]))
   );
   const [dragItem, setDragItem] = useState(null);
+  const [listOrder, setListOrder] = useState(() => lists.map((l) => l.id));
+
+  // Mantiene el orden local (para que subir/bajar se sienta instantaneo)
+  // pero incorpora listas nuevas y quita las borradas.
+  useEffect(() => {
+    setListOrder((prev) => {
+      const ids = lists.map((l) => l.id);
+      const kept = prev.filter((id) => ids.includes(id));
+      const added = ids.filter((id) => !kept.includes(id));
+      return [...kept, ...added];
+    });
+  }, [lists]);
 
   // Sincroniza cuando cambia el conjunto de listas (crear/borrar lista),
   // preservando el estado local de las listas que ya conociamos (para no
@@ -318,6 +334,20 @@ export default function Checklists({ lists, refresh }) {
     }
   }
 
+  function moveList(id, dir) {
+    setListOrder((prev) => {
+      const idx = prev.indexOf(id);
+      const swapIdx = dir === 'up' ? idx - 1 : idx + 1;
+      if (idx === -1 || swapIdx < 0 || swapIdx >= prev.length) return prev;
+      const next = [...prev];
+      [next[idx], next[swapIdx]] = [next[swapIdx], next[idx]];
+      next.forEach((listId, i) => {
+        api(`/api/checklists/${listId}`, { method: 'PATCH', body: JSON.stringify({ position: i }) }).catch(() => {});
+      });
+      return next;
+    });
+  }
+
   async function createList(e) {
     e.preventDefault();
     const clean = name.trim();
@@ -328,36 +358,27 @@ export default function Checklists({ lists, refresh }) {
     refresh();
   }
 
-  // Separar listas por tipo
-  const generalList = lists.find((l) => l.kind === 'general');
-  const dailyList = lists.find((l) => l.kind === 'daily');
-  const customLists = lists.filter((l) => l.kind === 'custom');
-
-  function renderList(l) {
-    return (
-      <List
-        key={l.id}
-        list={l}
-        items={itemsByList[l.id] || []}
-        setItems={setItemsFor(l.id)}
-        dragItem={dragItem}
-        setDragItem={setDragItem}
-        moveItem={moveItem}
-        refresh={refresh}
-      />
-    );
-  }
+  const listsById = new Map(lists.map((l) => [l.id, l]));
+  const orderedLists = listOrder.map((id) => listsById.get(id)).filter(Boolean);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '18px', minHeight: 0 }}>
-      {/* Split vertical: General y Daily */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '18px', flex: 1, minHeight: 0 }}>
-        {generalList && renderList(generalList)}
-        {dailyList && renderList(dailyList)}
-      </div>
-
-      {/* Custom lists */}
-      {customLists.map((l) => renderList(l))}
+      {orderedLists.map((l, idx) => (
+        <List
+          key={l.id}
+          list={l}
+          items={itemsByList[l.id] || []}
+          setItems={setItemsFor(l.id)}
+          dragItem={dragItem}
+          setDragItem={setDragItem}
+          moveItem={moveItem}
+          refresh={refresh}
+          onMoveUp={() => moveList(l.id, 'up')}
+          onMoveDown={() => moveList(l.id, 'down')}
+          canMoveUp={idx > 0}
+          canMoveDown={idx < orderedLists.length - 1}
+        />
+      ))}
 
       {adding ? (
         <form className="card" onSubmit={createList}>

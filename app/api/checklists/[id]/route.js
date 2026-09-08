@@ -2,11 +2,18 @@ import { getDb } from '@/lib/db.js';
 
 export async function PATCH(req, { params }) {
   const { id } = await params;
-  const { name } = await req.json();
-  const clean = (name || '').trim();
-  if (!clean) return Response.json({ error: 'El nombre no puede estar vacio' }, { status: 400 });
+  const body = await req.json();
+  const db = getDb();
 
-  getDb().prepare('UPDATE checklists SET name = ? WHERE id = ?').run(clean, Number(id));
+  if (typeof body.name === 'string') {
+    const clean = body.name.trim();
+    if (!clean) return Response.json({ error: 'El nombre no puede estar vacio' }, { status: 400 });
+    db.prepare('UPDATE checklists SET name = ? WHERE id = ?').run(clean, Number(id));
+  }
+  if (typeof body.position === 'number') {
+    db.prepare('UPDATE checklists SET position = ? WHERE id = ?').run(body.position, Number(id));
+  }
+
   return Response.json({ ok: true });
 }
 

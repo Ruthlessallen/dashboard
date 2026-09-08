@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { GmailCard, CalendarCard } from './Google.jsx';
 import Jobs from './Jobs.jsx';
 import News from './News.jsx';
@@ -21,6 +21,58 @@ export default function Dashboard() {
   const [agendaView, setAgendaView] = useState('upcoming');
   const [agendaDate, setAgendaDate] = useState(new Date());
   const [draggedEvents, setDraggedEvents] = useState([]);
+
+  // --- Redimensionar columnas -------------------------------------------
+  const MIN_COL_PX = 220;
+  const [colPx, setColPx] = useState(null); // null = usar el layout por defecto (fr)
+  const [isDesktop, setIsDesktop] = useState(false);
+  const colRefs = useRef([]);
+  const resizeState = useRef(null);
+
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem('dashboard-col-widths') || 'null');
+      if (Array.isArray(saved) && saved.length === 5) setColPx(saved);
+    } catch {}
+
+    const mq = window.matchMedia('(min-width: 1201px)');
+    setIsDesktop(mq.matches);
+    const onChange = (e) => setIsDesktop(e.matches);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
+
+  const startResize = useCallback((idx) => (e) => {
+    e.preventDefault();
+    const base = colPx || colRefs.current.map((el) => el?.getBoundingClientRect().width || 200);
+    resizeState.current = { idx, startX: e.clientX, base };
+
+    const onMove = (ev) => {
+      const { idx, startX, base } = resizeState.current;
+      const dx = ev.clientX - startX;
+      const next = [...base];
+      next[idx] = Math.max(MIN_COL_PX, base[idx] + dx);
+      next[idx + 1] = Math.max(MIN_COL_PX, base[idx + 1] - dx);
+      setColPx(next);
+    };
+    const onUp = () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+      resizeState.current = null;
+      setColPx((cur) => {
+        if (cur) {
+          try { localStorage.setItem('dashboard-col-widths', JSON.stringify(cur)); } catch {}
+        }
+        return cur;
+      });
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  }, [colPx]);
+
+  const gridStyle = isDesktop && colPx
+    ? { gridTemplateColumns: colPx.map((w) => `${Math.round(w)}px`).join(' 18px ') }
+    : undefined;
 
   const loadGoogle = useCallback(async () => {
     const [g, c, a] = await Promise.all([
@@ -146,8 +198,8 @@ export default function Dashboard() {
 
   return (
     <div className="shell">
-      <div className="grid">
-        <div className="col area-cal">
+      <div className="grid" style={gridStyle}>
+        <div className="col area-cal" ref={(el) => { colRefs.current[0] = el; }}>
           <CalendarCard
             data={calendar}
             draggedEvents={draggedEvents}
@@ -158,19 +210,27 @@ export default function Dashboard() {
           />
         </div>
 
-        <div className="col area-lists">
+        {isDesktop && <div className="h1 col-resize-handle" title="Arrastra para ensanchar" onMouseDown={startResize(0)} />}
+
+        <div className="col area-lists" ref={(el) => { colRefs.current[1] = el; }}>
           <Checklists lists={lists} refresh={loadLists} />
         </div>
 
-        <div className="col area-news">
+        {isDesktop && <div className="h2 col-resize-handle" title="Arrastra para ensanchar" onMouseDown={startResize(1)} />}
+
+        <div className="col area-news" ref={(el) => { colRefs.current[2] = el; }}>
           <News data={news} onRefresh={() => loadNews(true)} refreshing={refreshingNews} />
         </div>
 
-        <div className="col area-mail">
+        {isDesktop && <div className="h3 col-resize-handle" title="Arrastra para ensanchar" onMouseDown={startResize(2)} />}
+
+        <div className="col area-mail" ref={(el) => { colRefs.current[3] = el; }}>
           <GmailCard data={gmail} />
         </div>
 
-        <div className="col area-jobs">
+        {isDesktop && <div className="h4 col-resize-handle" title="Arrastra para ensanchar" onMouseDown={startResize(3)} />}
+
+        <div className="col area-jobs" ref={(el) => { colRefs.current[4] = el; }}>
           <Jobs />
         </div>
       </div>

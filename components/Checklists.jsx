@@ -37,7 +37,7 @@ function AddItem({ checklistId, onAdd }) {
   );
 }
 
-function List({ list, items, setItems, dragItem, setDragItem, moveItem, refresh, onMoveUp, onMoveDown, canMoveUp, canMoveDown }) {
+function List({ list, items, setItems, dragItem, setDragItem, moveItem, refresh, dragListId, setDragListId, reorderLists, listOverId, setListOverId }) {
   const [overIdx, setOverIdx] = useState(null);
   const [overEnd, setOverEnd] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -163,8 +163,31 @@ function List({ list, items, setItems, dragItem, setDragItem, moveItem, refresh,
   }
 
   return (
-    <div className="card">
+    <div
+      className={`card${listOverId === list.id && dragListId && dragListId !== list.id ? ' list-drag-over' : ''}`}
+      onDragOver={(e) => { if (dragListId && dragListId !== list.id) { e.preventDefault(); setListOverId(list.id); } }}
+      onDragLeave={() => setListOverId((o) => (o === list.id ? null : o))}
+      onDrop={(e) => {
+        if (!dragListId) return;
+        e.preventDefault();
+        e.stopPropagation();
+        reorderLists(dragListId, list.id);
+        setDragListId(null);
+        setListOverId(null);
+      }}
+    >
       <header style={{ cursor: 'pointer' }} onClick={toggleCollapsed}>
+        <span
+          className="handle"
+          title="Arrastra para reordenar la lista"
+          draggable
+          onClick={(e) => e.stopPropagation()}
+          onDragStart={(e) => { e.stopPropagation(); setDragListId(list.id); }}
+          onDragEnd={() => { setDragListId(null); setListOverId(null); }}
+          style={{ cursor: 'grab', opacity: 1, padding: '0 2px' }}
+        >
+          ⠿
+        </span>
         <button
           className="btn ghost"
           onClick={(e) => { e.stopPropagation(); toggleCollapsed(); }}
@@ -173,10 +196,6 @@ function List({ list, items, setItems, dragItem, setDragItem, moveItem, refresh,
         >
           ▾
         </button>
-        <div className="col-order" onClick={(e) => e.stopPropagation()}>
-          <button className="btn ghost" onClick={onMoveUp} disabled={!canMoveUp} title="Subir lista">▲</button>
-          <button className="btn ghost" onClick={onMoveDown} disabled={!canMoveDown} title="Bajar lista">▼</button>
-        </div>
         <h2>{list.name}</h2>
         {list.kind === 'daily' && <span className="badge">se reinicia cada día</span>}
         <span className="spacer" />
@@ -268,6 +287,8 @@ export default function Checklists({ lists, refresh }) {
     Object.fromEntries(lists.map((l) => [l.id, l.items]))
   );
   const [dragItem, setDragItem] = useState(null);
+  const [dragListId, setDragListId] = useState(null);
+  const [listOverId, setListOverId] = useState(null);
   const [listOrder, setListOrder] = useState(() => lists.map((l) => l.id));
 
   // Mantiene el orden local (para que subir/bajar se sienta instantaneo)
@@ -334,13 +355,16 @@ export default function Checklists({ lists, refresh }) {
     }
   }
 
-  function moveList(id, dir) {
+  // Arrastrar una lista sobre otra la coloca justo en esa posicion
+  // (igual que mover una tarea entre listas, pero a nivel de lista entera).
+  function reorderLists(draggedId, targetId) {
+    if (draggedId === targetId) return;
     setListOrder((prev) => {
-      const idx = prev.indexOf(id);
-      const swapIdx = dir === 'up' ? idx - 1 : idx + 1;
-      if (idx === -1 || swapIdx < 0 || swapIdx >= prev.length) return prev;
+      const fromIdx = prev.indexOf(draggedId);
+      if (fromIdx === -1 || prev.indexOf(targetId) === -1) return prev;
       const next = [...prev];
-      [next[idx], next[swapIdx]] = [next[swapIdx], next[idx]];
+      const [moved] = next.splice(fromIdx, 1);
+      next.splice(next.indexOf(targetId), 0, moved);
       next.forEach((listId, i) => {
         api(`/api/checklists/${listId}`, { method: 'PATCH', body: JSON.stringify({ position: i }) }).catch(() => {});
       });
@@ -363,7 +387,7 @@ export default function Checklists({ lists, refresh }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '18px', minHeight: 0 }}>
-      {orderedLists.map((l, idx) => (
+      {orderedLists.map((l) => (
         <List
           key={l.id}
           list={l}
@@ -373,10 +397,11 @@ export default function Checklists({ lists, refresh }) {
           setDragItem={setDragItem}
           moveItem={moveItem}
           refresh={refresh}
-          onMoveUp={() => moveList(l.id, 'up')}
-          onMoveDown={() => moveList(l.id, 'down')}
-          canMoveUp={idx > 0}
-          canMoveDown={idx < orderedLists.length - 1}
+          dragListId={dragListId}
+          setDragListId={setDragListId}
+          reorderLists={reorderLists}
+          listOverId={listOverId}
+          setListOverId={setListOverId}
         />
       ))}
 

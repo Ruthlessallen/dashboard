@@ -41,8 +41,27 @@ function List({ list, refresh }) {
   const [items, setItems] = useState(list.items);
   const [dragIdx, setDragIdx] = useState(null);
   const [overIdx, setOverIdx] = useState(null);
+  const [editingId, setEditingId] = useState(null);
+  const [editText, setEditText] = useState('');
+  const [collapsed, setCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem(`checklist-collapsed-${list.id}`) === '1';
+    } catch {
+      return false;
+    }
+  });
   const done = items.filter((i) => i.done).length;
   const pct = items.length ? (done / items.length) * 100 : 0;
+
+  function toggleCollapsed() {
+    setCollapsed((c) => {
+      const next = !c;
+      try {
+        localStorage.setItem(`checklist-collapsed-${list.id}`, next ? '1' : '0');
+      } catch {}
+      return next;
+    });
+  }
 
   async function toggle(item) {
     const next = !item.done;
@@ -57,6 +76,32 @@ function List({ list, refresh }) {
   async function remove(item) {
     setItems((xs) => xs.filter((x) => x.id !== item.id));
     await api(`/api/items/${item.id}`, { method: 'DELETE' }).catch(() => refresh());
+  }
+
+  function startEdit(item) {
+    setEditingId(item.id);
+    setEditText(item.text);
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+    setEditText('');
+  }
+
+  async function saveEdit(item) {
+    const clean = editText.trim();
+    if (!clean || clean === item.text) {
+      cancelEdit();
+      return;
+    }
+    const prevText = item.text;
+    setItems((xs) => xs.map((x) => (x.id === item.id ? { ...x, text: clean } : x)));
+    cancelEdit();
+    try {
+      await api(`/api/items/${item.id}`, { method: 'PATCH', body: JSON.stringify({ text: clean }) });
+    } catch {
+      setItems((xs) => xs.map((x) => (x.id === item.id ? { ...x, text: prevText } : x)));
+    }
   }
 
   async function reorder(fromIdx, toIdx) {
@@ -89,7 +134,15 @@ function List({ list, refresh }) {
 
   return (
     <div className="card">
-      <header>
+      <header style={{ cursor: 'pointer' }} onClick={toggleCollapsed}>
+        <button
+          className="btn ghost"
+          onClick={(e) => { e.stopPropagation(); toggleCollapsed(); }}
+          title={collapsed ? 'Desplegar' : 'Plegar'}
+          style={{ padding: '4px 6px', transform: collapsed ? 'rotate(-90deg)' : 'none', transition: 'transform .15s' }}
+        >
+          ▾
+        </button>
         <h2>{list.name}</h2>
         {list.kind === 'daily' && <span className="badge">se reinicia cada día</span>}
         <span className="spacer" />
@@ -97,40 +150,65 @@ function List({ list, refresh }) {
           {done}/{items.length}
         </span>
         {list.kind === 'custom' && (
-          <button className="btn ghost" onClick={removeList} title="Borrar lista">✕</button>
+          <button className="btn ghost" onClick={(e) => { e.stopPropagation(); removeList(); }} title="Borrar lista">✕</button>
         )}
       </header>
 
       <div className="progress"><div style={{ width: `${pct}%` }} /></div>
 
-      <div className="body">
-        {items.length === 0 && <div className="empty">Sin tareas todavía.</div>}
-        {items.map((item, idx) => (
-          <div
-            key={item.id}
-            className={`check${item.done ? ' done' : ''} draggable-item${overIdx === idx && dragIdx !== null && dragIdx !== idx ? ' drag-over' : ''}`}
-            draggable
-            onDragStart={() => setDragIdx(idx)}
-            onDragOver={(e) => { e.preventDefault(); if (dragIdx !== null) setOverIdx(idx); }}
-            onDragLeave={() => setOverIdx((o) => (o === idx ? null : o))}
-            onDrop={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              if (dragIdx !== null) reorder(dragIdx, idx);
-              setDragIdx(null);
-              setOverIdx(null);
-            }}
-            onDragEnd={() => { setDragIdx(null); setOverIdx(null); }}
-          >
-            <span className="handle" title="Arrastra para reordenar">⠿</span>
-            <input type="checkbox" checked={item.done} onChange={() => toggle(item)} />
-            <span className="txt">{item.text}</span>
-            <button className="btn ghost del" onClick={() => remove(item)} title="Eliminar">✕</button>
+      {!collapsed && (
+        <>
+          <div className="body">
+            {items.length === 0 && <div className="empty">Sin tareas todavía.</div>}
+            {items.map((item, idx) => (
+              <div
+                key={item.id}
+                className={`check${item.done ? ' done' : ''} draggable-item${overIdx === idx && dragIdx !== null && dragIdx !== idx ? ' drag-over' : ''}`}
+                draggable={editingId !== item.id}
+                onDragStart={() => setDragIdx(idx)}
+                onDragOver={(e) => { e.preventDefault(); if (dragIdx !== null) setOverIdx(idx); }}
+                onDragLeave={() => setOverIdx((o) => (o === idx ? null : o))}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  if (dragIdx !== null) reorder(dragIdx, idx);
+                  setDragIdx(null);
+                  setOverIdx(null);
+                }}
+                onDragEnd={() => { setDragIdx(null); setOverIdx(null); }}
+              >
+                <span className="handle" title="Arrastra para reordenar">⠿</span>
+                <input type="checkbox" checked={item.done} onChange={() => toggle(item)} />
+                {editingId === item.id ? (
+                  <input
+                    type="text"
+                    className="txt"
+                    autoFocus
+                    value={editText}
+                    onChange={(e) => setEditText(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') saveEdit(item);
+                      if (e.key === 'Escape') cancelEdit();
+                    }}
+                    onBlur={() => saveEdit(item)}
+                    style={{ flex: 1, border: '1px solid var(--border)', borderRadius: 6, padding: '2px 6px' }}
+                  />
+                ) : (
+                  <span className="txt">{item.text}</span>
+                )}
+                {editingId === item.id ? (
+                  <button className="btn ghost" onClick={() => saveEdit(item)} title="Guardar">✓</button>
+                ) : (
+                  <button className="btn ghost" onClick={() => startEdit(item)} title="Editar">✎</button>
+                )}
+                <button className="btn ghost del" onClick={() => remove(item)} title="Eliminar">✕</button>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
 
-      <AddItem checklistId={list.id} onAdd={(it) => setItems((xs) => [...xs, it])} />
+          <AddItem checklistId={list.id} onAdd={(it) => setItems((xs) => [...xs, it])} />
+        </>
+      )}
     </div>
   );
 }

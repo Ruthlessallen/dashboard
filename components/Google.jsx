@@ -176,16 +176,31 @@ export function CalendarCard({ data, draggedEvents = [], onViewChange, onDateCha
     e.dataTransfer.dropEffect = 'move';
   };
 
-  const handleDrop = (e) => {
-    e.preventDefault();
+  const extractDropText = (e) => {
     let text = e.dataTransfer.getData('text/plain') || '';
     if (!text) {
       text = e.dataTransfer.getData('text') || 'Elemento sin título';
     }
     // Limpiar el texto (remover espacios extra, truncar si es muy largo)
-    text = text.trim().substring(0, 200);
+    return text.trim().substring(0, 200);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    const text = extractDropText(e);
     if (text) {
       onDrop?.({ text, view, date: selectedDate });
+    }
+  };
+
+  // En vista mes, cada celda de día resuelve su propia fecha: el drop
+  // queda fijado al día soltado, sin volver a preguntar "qué día del mes".
+  const handleDayDrop = (e, day) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const text = extractDropText(e);
+    if (text) {
+      onDrop?.({ text, view: 'month', date: day, dayFixed: true });
     }
   };
 
@@ -259,6 +274,8 @@ export function CalendarCard({ data, draggedEvents = [], onViewChange, onDateCha
                   <div
                     key={i}
                     onClick={() => { setSelectedDate(d); setView('day'); }}
+                    onDragOver={handleDragOver}
+                    onDrop={(e) => handleDayDrop(e, d)}
                     style={{
                       minHeight: 68,
                       borderRadius: 8,

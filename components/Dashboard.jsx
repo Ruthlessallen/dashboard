@@ -96,7 +96,9 @@ export default function Dashboard() {
     try {
       // Determinar la fecha del evento
       let eventDate = new Date(agendaModal.date);
-      if (agendaView === 'upcoming' && formData.day) {
+      if (agendaModal.dayFixed) {
+        // El día ya viene fijado (se soltó sobre una celda concreta del mes)
+      } else if (agendaView === 'upcoming' && formData.day) {
         eventDate = new Date(formData.day);
       } else if (agendaView === 'week' && formData.dayOfWeek) {
         const daysMap = { lunes: 1, martes: 2, miercoles: 3, jueves: 4, viernes: 5, sabado: 6, domingo: 0 };
@@ -210,6 +212,7 @@ export default function Dashboard() {
               item={agendaModal}
               view={agendaView}
               onSave={saveToAgenda}
+              onCancel={() => setAgendaModal(null)}
             />
           </div>
         </div>
@@ -218,7 +221,7 @@ export default function Dashboard() {
   );
 }
 
-function AddToAgendaForm({ item, view, onSave }) {
+function AddToAgendaForm({ item, view, onSave, onCancel }) {
   const [hour, setHour] = useState('10');
   const [minute, setMinute] = useState('00');
   const [allDay, setAllDay] = useState(false);
@@ -266,13 +269,13 @@ function AddToAgendaForm({ item, view, onSave }) {
         </>
       )}
 
-      {view === 'day' && (
+      {(view === 'day' || item.dayFixed) && (
         <div style={{ marginBottom: '12px', fontSize: '12px', color: 'var(--muted)' }}>
           Día: {item.date?.toLocaleDateString('es-ES')}
         </div>
       )}
 
-      {view === 'week' && (
+      {view === 'week' && !item.dayFixed && (
         <>
           <div style={{ marginBottom: '12px' }}>
             <label style={{ fontSize: '12px', fontWeight: 600 }}>
@@ -302,7 +305,7 @@ function AddToAgendaForm({ item, view, onSave }) {
         </>
       )}
 
-      {view === 'month' && (
+      {view === 'month' && !item.dayFixed && (
         <>
           <div style={{ marginBottom: '12px' }}>
             <label style={{ fontSize: '12px', fontWeight: 600 }}>
@@ -364,7 +367,7 @@ function AddToAgendaForm({ item, view, onSave }) {
       )}
 
       <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-        <button className="btn ghost" onClick={() => {}}>Cancelar</button>
+        <button className="btn ghost" onClick={onCancel}>Cancelar</button>
         <button className="btn primary" onClick={handleSave}>Guardar</button>
       </div>
     </div>

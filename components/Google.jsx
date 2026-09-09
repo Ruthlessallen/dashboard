@@ -36,7 +36,7 @@ export function GmailCard({ data }) {
       </header>
       <div className="body">
         {error && <div className="empty" style={{ color: 'var(--red)' }}>{error}</div>}
-        {!connected && !error && <ConnectPrompt configured={configured} />}
+        {!connected && <ConnectPrompt configured={configured} />}
         {connected && items.length === 0 && <div className="empty">Bandeja vacía. 🎉</div>}
         {items.map((m) => (
           <a key={m.id} className="row draggable-item" href={m.link} target="_blank" rel="noreferrer" draggable>
@@ -260,7 +260,7 @@ export function CalendarCard({ data, draggedEvents = [], onViewChange, onDateCha
       {view === 'month' ? (
         <div className="body drop-zone" style={{ minHeight: '300px', padding: '8px 12px 12px' }} onDragOver={handleDragOver} onDrop={handleDrop}>
           {error && <div className="empty" style={{ color: 'var(--red)' }}>{error}</div>}
-          {!connected && !error && <ConnectPrompt configured={configured} />}
+          {!connected && <ConnectPrompt configured={configured} />}
           {connected && (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4 }}>
               {WEEKDAY_LABELS.map((w) => (
@@ -307,7 +307,7 @@ export function CalendarCard({ data, draggedEvents = [], onViewChange, onDateCha
       ) : (
       <div className="body drop-zone agenda-list" style={{ minHeight: view === 'upcoming' ? 'auto' : '300px' }} onDragOver={handleDragOver} onDrop={handleDrop}>
         {error && <div className="empty" style={{ color: 'var(--red)' }}>{error}</div>}
-        {!connected && !error && <ConnectPrompt configured={configured} />}
+        {!connected && <ConnectPrompt configured={configured} />}
         {connected && filteredGroups.length === 0 && <div className="empty">Sin eventos.</div>}
         {filteredGroups.map((g, idx) => (
           <div

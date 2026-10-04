@@ -54,6 +54,25 @@ export default function Empleos() {
 
   useEffect(() => { load(); }, [load]);
 
+  const scraper = data?.scraper;
+  const running = Boolean(scraper?.running);
+
+  // Mientras el scraper trabaja, refrescamos para ir viendo las ofertas nuevas
+  useEffect(() => {
+    if (!running) return;
+    const t = setInterval(load, 20000);
+    return () => clearInterval(t);
+  }, [running, load]);
+
+  const updateNow = async () => {
+    await fetch('/api/empleos/actualizar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ force: true }),
+    }).catch(() => {});
+    load();
+  };
+
   const items = data?.items || [];
   const discardedCount = items.filter((i) => i.excludedReason).length;
   const sources = useMemo(() => {
@@ -96,6 +115,27 @@ export default function Empleos() {
           )}
           <button className="btn ghost" onClick={load} disabled={loading}>{loading ? '…' : '↻'}</button>
         </header>
+
+        {scraper?.available && (
+          <div className="empleos-help" style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+            {running ? (
+              <span>
+                ⏳ Buscando ofertas nuevas en los portales (empezó {relTime(scraper.startedAt)}).
+                {scraper.logTail?.length > 0 && <span className="muted"> {scraper.logTail[scraper.logTail.length - 1].slice(0, 90)}</span>}
+              </span>
+            ) : (
+              <span>
+                {scraper.finishedAt ? `Última búsqueda ${relTime(scraper.finishedAt)}.` : 'Aún sin búsquedas.'}{' '}
+                {scraper.nextAutoAt && new Date(scraper.nextAutoAt) > new Date() && `Próxima automática ${new Date(scraper.nextAutoAt).toLocaleString('es-ES', { weekday: 'short', hour: '2-digit', minute: '2-digit' })}.`}
+              </span>
+            )}
+            {scraper.rateLimited && !running && (
+              <span className="badge off" title="LinkedIn devolvió 429/403: el scraper espera 24 h antes de reintentar solo">Portal limitó las peticiones</span>
+            )}
+            {scraper.error && !running && <span className="badge off">{scraper.error}</span>}
+            {!running && <button className="btn ghost" onClick={updateNow}>Actualizar ahora</button>}
+          </div>
+        )}
 
         {data && !data.configured && (
           <div className="empty">
@@ -160,7 +200,7 @@ export default function Empleos() {
                 <div
                   className="empleo-score"
                   style={{ color: scoreColor(i.score), borderColor: scoreColor(i.score) }}
-                  title={`Rol ${b.rol} · Zona ${b.zona} · Nivel ${b.nivel} · Frescura ${b.frescura}`}
+                  title={`Rol ${b.rol} · Zona ${b.zona} · Nivel ${b.nivel} · Frescura ${b.frescura}${b.competencia ? ` · Competencia −${b.competencia}` : ''}`}
                 >
                   {i.score}
                 </div>

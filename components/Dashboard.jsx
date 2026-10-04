@@ -114,6 +114,8 @@ export default function Dashboard() {
     loadNews();
     loadLists();
     loadDraggedEvents();
+    // Actualiza las ofertas del scraper al abrir; el servidor decide si toca (cooldown)
+    fetch('/api/empleos/actualizar', { method: 'POST' }).catch(() => {});
     const a = setInterval(loadGoogle, GOOGLE_POLL_MS);
     const b = setInterval(() => loadNews(), NEWS_POLL_MS);
     const c = setInterval(loadDraggedEvents, 30000);

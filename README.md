@@ -13,7 +13,7 @@ Sustituye la rutina de abrir Gmail, Calendar, varias webs de noticias y una list
 - **Gmail + Google Calendar**: lectura de correo y agenda vía OAuth2 (permisos de solo lectura, `gmail.readonly` / `calendar.readonly`).
 - **Agregador de noticias**: fuentes RSS configurables por categoría (IA / data / web) + Hacker News vía la API de Algolia, filtrado por puntuación y palabras clave. Caché de 15 minutos y aviso si alguna fuente falla.
 - **Ofertas de empleo**: API pública de [Manfred](https://www.getmanfred.com/) (sin configuración) + alertas de empleo de LinkedIn leídas automáticamente desde Gmail.
-- **Empleos (`/empleos`)**: lee el CSV de un scraper propio (LinkedIn, Tecnoempleo, InfoJobs, Indeed) y lo puntúa con criterios propios (rol, cercanía, nivel junior, frescura), descartando senior y ofertas antiguas. Configura `JOBS_CSV_PATH` y `JOBS_HOME_TOWN` en `.env.local`.
+- **Empleos (`/empleos`)**: lee el CSV de un scraper propio en Python (LinkedIn y Tecnoempleo, páginas públicas sin login ni cookies) y lo puntúa con criterios propios: rol, cercanía, nivel junior, frescura y competencia. Descarta senior, titulaciones no relacionadas y ofertas antiguas. Si existe la carpeta `scraper/` (o `JOBS_SCRAPER_DIR`), se lanza solo en segundo plano al abrir el dashboard: máx. cada 12 h, nunca dos a la vez y con espera larga si un portal limita las peticiones.
 - **Checklists**: listas fijas (General, Diaria con reinicio automático) y listas personalizadas ilimitadas.
 - **Datos 100% locales**: todo se persiste en SQLite en disco; los tokens OAuth nunca salen del equipo.
 

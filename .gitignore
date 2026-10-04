@@ -9,3 +9,8 @@ data/*.db-wal
 .DS_Store
 AGENTS.md
 CLAUDE.md
+__pycache__/
+*.pyc
+scraper/ofertas_encontradas.*
+scraper/estado.json
+scraper/ultima_ejecucion.log

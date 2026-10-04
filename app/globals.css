@@ -266,3 +266,5 @@ input[type=text]:focus { outline: none; border-color: var(--accent); }
 .post-notes { margin-top: 5px; font-size: 12px; }
 .post-notes summary { cursor: pointer; color: var(--muted); }
 .post-notes p { margin: 4px 0 0; color: var(--muted); }
+.post-undo { background: none; border: none; padding: 0 4px; font-size: 11px; color: var(--muted); text-decoration: underline; cursor: pointer; }
+.post-undo:hover { color: var(--red); }

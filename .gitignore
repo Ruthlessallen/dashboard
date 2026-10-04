@@ -14,3 +14,4 @@ __pycache__/
 scraper/ofertas_encontradas.*
 scraper/estado.json
 scraper/ultima_ejecucion.log
+scraper/config.json

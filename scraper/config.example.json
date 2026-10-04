@@ -1,0 +1,13 @@
+{
+  "ubicacion": "Barcelona",
+  "zonas_aceptadas": ["barcelona", "cataluña", "catalunya"],
+  "busquedas": [
+    { "query": "Junior Data Analyst", "filtro_cand": "menos_80" },
+    { "query": "Junior Backend Python", "filtro_cand": "menos_80" },
+    { "query": "Junior Automatizacion IA", "filtro_cand": "menos_80" }
+  ],
+  "tecnoempleo_categorias": ["barcelona", "python", "data-analyst"],
+  "empresas_excluidas": [],
+  "palabras_descarte_titulo": ["senior", "sr", "lead", "principal", "head of", "director", "manager", "architect", "arquitecto"],
+  "stack_deseado": ["Python", "SQL", "Pandas", "Power BI", "Docker", "Git", "JavaScript", "FastAPI"]
+}

@@ -33,6 +33,15 @@ export default function Postulaciones() {
     return () => clearInterval(t);
   }, [load]);
 
+  const undo = async (i) => {
+    await fetch('/api/empleos/estado', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: i.url, state: null }),
+    }).catch(() => {});
+    load();
+  };
+
   const all = data?.items || [];
   const unsentCount = all.filter((i) => i.fase === 'unsent').length;
   const items = all.filter((i) => showUnsent || i.fase !== 'unsent');
@@ -60,21 +69,18 @@ export default function Postulaciones() {
       </div>
 
       <div className="body" style={{ maxHeight: 600 }}>
-        {data && !data.configured && (
-          <div className="empty">
-            Falta indicar el CSV de postulaciones.<br />
-            <span style={{ fontSize: 12 }}>Añade <code>POSTULACIONES_CSV_PATH</code> a <code>.env.local</code> y reinicia.</span>
-          </div>
-        )}
         {data?.error && <div className="empty" style={{ color: 'var(--red)' }}>{data.error}</div>}
-        {data?.configured && !data.error && items.length === 0 && (
-          <div className="empty">Ninguna postulación activa en los últimos {days} días.</div>
+        {data && items.length === 0 && (
+          <div className="empty">
+            Ninguna postulación activa en los últimos {days} días.<br />
+            <span style={{ fontSize: 12 }}>Marca ofertas con «Ya apliqué» en Empleos o indica un CSV en <code>POSTULACIONES_CSV_PATH</code>.</span>
+          </div>
         )}
 
         {items.map((i) => {
           const fase = FASE[i.fase] || FASE.other;
           return (
-            <div key={`${i.fecha}-${i.empresa}-${i.puesto}`} className="post">
+            <div key={`${i.fecha}-${i.empresa}-${i.puesto}-${i.url || ''}`} className="post">
               <div className={`post-days${i.daysAgo === 0 ? ' today' : ''}`} title={`Postulada el ${i.fecha}`}>
                 {i.daysAgo === 0 ? (
                   <b>Hoy</b>
@@ -96,6 +102,9 @@ export default function Postulaciones() {
                   <span className={`badge ${fase.cls}`}>{fase.label || i.faseTexto}</span>
                   <span className="badge">{i.practicas ? 'Prácticas' : 'Empleo'}</span>
                   {i.modalidad && <span className="badge">{i.modalidad}</span>}
+                  {i.origen === 'dashboard' && (
+                    <button className="post-undo" onClick={() => undo(i)} title="Marcada desde Empleos. Quitarla de postulaciones">Deshacer</button>
+                  )}
                 </div>
                 {(i.lugar || i.horario) && (
                   <div className="post-meta">

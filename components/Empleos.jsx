@@ -27,6 +27,27 @@ const SORTS = [
   { id: 'near', label: 'Más cerca de casa' },
 ];
 
+const CHECKS = [['rol', 'Rol'], ['nivel', 'Nivel'], ['zona', 'Zona'], ['fecha', 'Fecha'], ['competencia', 'Competencia']];
+
+function checkTitle(key, i) {
+  const c = i.checks[key];
+  const b = i.breakdown;
+  const text = {
+    rol: { good: 'Data, IA o backend', ok: 'Desarrollo en general', bad: '' },
+    nivel: { good: 'Junior / prácticas o 0-1 años', ok: 'Pide hasta 2 años o programa de graduados', unknown: 'No indica el nivel: revísalo', bad: '' },
+    zona: {
+      good: i.mode === 'remote' ? 'Remoto' : `Cerca (~${i.distanceKm} km)`,
+      ok: `A distancia media (~${i.distanceKm} km)`,
+      bad: `Lejos (~${i.distanceKm} km)`,
+      unknown: 'Modalidad o lugar sin confirmar',
+    },
+    fecha: { good: 'Publicada hace poco', ok: 'Publicada hace 2-8 semanas', bad: 'Publicada hace más de 2 meses', unknown: 'Fecha desconocida' },
+    competencia: { good: 'Pocos solicitantes', ok: 'Bastantes solicitantes', bad: 'Muchos solicitantes' },
+  }[key][c];
+  const pts = { rol: b.rol, nivel: b.nivel, zona: b.zona, fecha: b.frescura, competencia: -b.competencia }[key];
+  return `${text} (${pts > 0 ? '+' : ''}${pts} pts)`;
+}
+
 function scoreColor(s) {
   return s >= 85 ? 'var(--green)' : s >= 70 ? 'var(--blue)' : 'var(--muted)';
 }
@@ -40,6 +61,8 @@ export default function Empleos() {
   const [sort, setSort] = useState('score');
   const [query, setQuery] = useState('');
   const [showDiscarded, setShowDiscarded] = useState(false);
+  const [status, setStatus] = useState('pending');
+  const [overrides, setOverrides] = useState({}); // url -> 'applied' | 'dismissed' | null
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -74,7 +97,18 @@ export default function Empleos() {
   };
 
   const items = data?.items || [];
-  const discardedCount = items.filter((i) => i.excludedReason).length;
+  const stateOf = (i) => (i.url in overrides ? overrides[i.url] : i.state);
+  const mark = async (i, state) => {
+    setOverrides((o) => ({ ...o, [i.url]: state }));
+    await fetch('/api/empleos/estado', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: i.url, state }),
+    }).catch(() => setOverrides((o) => ({ ...o, [i.url]: i.state })));
+  };
+  const appliedCount = items.filter((i) => stateOf(i) === 'applied').length;
+  const dismissedCount = items.filter((i) => stateOf(i) === 'dismissed').length;
+  const discardedCount = items.filter((i) => i.excludedReason && !stateOf(i)).length;
   const sources = useMemo(() => {
     const counts = {};
     for (const i of items) counts[i.source] = (counts[i.source] || 0) + 1;
@@ -84,7 +118,11 @@ export default function Empleos() {
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
     const list = items.filter((i) => {
-      if (!showDiscarded && i.excludedReason) return false;
+      const st = stateOf(i);
+      if (status === 'pending') {
+        if (st) return false;
+        if (!showDiscarded && i.excludedReason) return false;
+      } else if (st !== status) return false;
       if (role !== 'all' && !i.roles.includes(role)) return false;
       if (mode !== 'all' && i.mode !== mode) return false;
       if (source !== 'all' && i.source !== source) return false;
@@ -98,7 +136,7 @@ export default function Empleos() {
       list.sort((a, b) => d(a) - d(b) || b.score - a.score);
     } else list.sort((a, b) => b.score - a.score || byDate(a, b));
     return list;
-  }, [items, role, mode, source, sort, query, showDiscarded]);
+  }, [items, overrides, status, role, mode, source, sort, query, showDiscarded]);
 
   return (
     <div className="shell">
@@ -148,6 +186,12 @@ export default function Empleos() {
         {items.length > 0 && (
           <>
             <div className="filters">
+              <span className="rangelabel">Estado</span>
+              <button className={`chip${status === 'pending' ? ' active' : ''}`} onClick={() => setStatus('pending')}>Pendientes</button>
+              <button className={`chip${status === 'applied' ? ' active' : ''}`} onClick={() => setStatus('applied')}>Ya aplicadas · {appliedCount}</button>
+              <button className={`chip${status === 'dismissed' ? ' active' : ''}`} onClick={() => setStatus('dismissed')}>Borradas por mí · {dismissedCount}</button>
+            </div>
+            <div className="filters ranges">
               <span className="rangelabel">Rol</span>
               {ROLES.map((r) => (
                 <button key={r.id} className={`chip${role === r.id ? ' active' : ''}`} onClick={() => setRole(r.id)}>{r.label}</button>
@@ -179,11 +223,11 @@ export default function Empleos() {
               </select>
               <label className="empleos-toggle">
                 <input type="checkbox" checked={showDiscarded} onChange={(e) => setShowDiscarded(e.target.checked)} />
-                Mostrar descartadas ({discardedCount})
+                Mostrar las filtradas automáticamente ({discardedCount})
               </label>
             </div>
             <div className="empleos-help">
-              Puntuación propia (no la del scraper): rol 40 + zona 20 + nivel 20 + frescura 20. Pasa el ratón por el número para ver el desglose.
+              El número es orientativo (no es el del scraper). Mira los indicadores de cada oferta: verde bien, ámbar a medias, rojo mal, gris sin dato. Pasa el ratón por encima para ver por qué.
               {data.homeKnown ? ` Cercanía medida en línea recta desde ${data.homeName}.` : ' Sin municipio de casa configurado: no se puntúa la cercanía.'}
             </div>
           </>
@@ -195,8 +239,9 @@ export default function Empleos() {
           )}
           {visible.map((i) => {
             const b = i.breakdown;
+            const st = stateOf(i);
             return (
-              <div key={`${i.source}-${i.id}`} className={`empleo${i.excludedReason ? ' discarded' : ''}`}>
+              <div key={`${i.source}-${i.id}`} className={`empleo${i.excludedReason && !st ? ' discarded' : ''}`}>
                 <div
                   className="empleo-score"
                   style={{ color: scoreColor(i.score), borderColor: scoreColor(i.score) }}
@@ -218,6 +263,11 @@ export default function Empleos() {
                     <span>{MODE_LABEL[i.mode]}</span>
                   </div>
                   {i.summary && <div className="snippet">{i.summary}</div>}
+                  <div className="empleo-checks">
+                    {CHECKS.map(([key, label]) => i.checks[key] && (
+                      <span key={key} className={`chk ${i.checks[key]}`} title={checkTitle(key, i)}>{label}</span>
+                    ))}
+                  </div>
                   <div className="empleo-tags">
                     <span className="badge on">{i.source}</span>
                     {i.roles.map((r) => <span key={r} className="badge">{ROLE_LABEL[r]}</span>)}
@@ -225,6 +275,16 @@ export default function Empleos() {
                     {i.flags.map((f) => <span key={f} className="badge warn">{f}</span>)}
                     {i.excludedReason && <span className="badge off">{i.excludedReason}</span>}
                   </div>
+                </div>
+                <div className="empleo-actions">
+                  {st ? (
+                    <button className="btn ghost" onClick={() => mark(i, null)}>Deshacer</button>
+                  ) : (
+                    <>
+                      <button className="btn" onClick={() => mark(i, 'applied')} title="Marcar como ya aplicada">✓ Ya apliqué</button>
+                      <button className="btn ghost" onClick={() => mark(i, 'dismissed')} title="Quitar de la lista">✕ Borrar</button>
+                    </>
+                  )}
                 </div>
               </div>
             );

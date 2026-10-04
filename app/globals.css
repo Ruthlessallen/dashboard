@@ -237,3 +237,11 @@ input[type=text]:focus { outline: none; border-color: var(--accent); }
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
 }
 .empleo-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.empleo-checks { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 6px; font-size: 11.5px; color: var(--muted); }
+.chk { display: inline-flex; align-items: center; gap: 4px; cursor: help; }
+.chk::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: #c3c9d6; }
+.chk.good::before { background: var(--green); }
+.chk.ok::before { background: var(--orange); }
+.chk.bad::before { background: var(--red); }
+.empleo-actions { display: flex; flex-direction: column; gap: 4px; align-items: stretch; flex: none; font-size: 12px; }
+.empleo-actions .btn { padding: 4px 10px; font-size: 12px; white-space: nowrap; }

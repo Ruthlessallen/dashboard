@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { GmailCard, CalendarCard } from './Google.jsx';
-import Jobs from './Jobs.jsx';
+import Postulaciones from './Postulaciones.jsx';
 import News from './News.jsx';
 import Checklists from './Checklists.jsx';
 
@@ -239,7 +239,7 @@ export default function Dashboard() {
         {isDesktop && <div className="h4 col-resize-handle" title="Arrastra para ensanchar" onMouseDown={startResize(3)} />}
 
         <div className="col area-jobs" ref={(el) => { colRefs.current[4] = el; }}>
-          <Jobs />
+          <Postulaciones />
         </div>
       </div>
 

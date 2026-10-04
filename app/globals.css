@@ -209,3 +209,31 @@ input[type=text]:focus { outline: none; border-color: var(--accent); }
 .src { font-size: 11px; padding: 3px 8px; border-radius: 6px; border: 1px solid var(--border); }
 .src.ok { color: var(--muted); }
 .src.bad { color: var(--red); border-color: rgba(220,38,38,.28); }
+
+/* --- pagina /empleos ----------------------------------------------------- */
+.badge.warn { background: rgba(217,119,6,.09); color: var(--orange); border-color: rgba(217,119,6,.28); }
+.empleos-help { padding: 8px 16px; font-size: 12px; color: var(--muted); border-bottom: 1px solid var(--border); }
+.empleos-select {
+  font-size: 12px; padding: 5px 8px; border-radius: 8px;
+  border: 1px solid var(--border); background: var(--panel); color: var(--text);
+}
+.empleos-toggle { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); cursor: pointer; }
+.empleo { display: flex; gap: 14px; padding: 12px 16px; border-bottom: 1px solid rgba(227,230,236,.9); }
+.empleo:last-child { border-bottom: none; }
+.empleo:hover { background: var(--panel-2); }
+.empleo.discarded { opacity: .55; }
+.empleo-score {
+  flex: none; width: 40px; height: 40px; border: 2px solid; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; cursor: help;
+}
+.empleo-main { flex: 1; min-width: 0; }
+.empleo .line1 { display: flex; align-items: baseline; gap: 8px; }
+.empleo .title { font-weight: 600; flex: 1; min-width: 0; }
+.empleo .title:hover { color: var(--accent); }
+.empleo .when { color: var(--muted); font-size: 11.5px; white-space: nowrap; }
+.empleo-meta { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12.5px; color: var(--muted); margin-top: 2px; }
+.empleo .snippet {
+  color: var(--muted); font-size: 12.5px; margin-top: 4px;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.empleo-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }

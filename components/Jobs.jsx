@@ -72,6 +72,7 @@ export default function Jobs() {
         <h2>Ofertas</h2>
         <span className="badge">{filtered.length}</span>
         <span className="spacer" />
+        <a className="btn ghost" href="/empleos" title="Ofertas del scraper, con puntuación propia">Empleos →</a>
         <button className="btn ghost" onClick={() => load(true)} disabled={refreshing || loading}>
           {refreshing ? '…' : '↻'}
         </button>

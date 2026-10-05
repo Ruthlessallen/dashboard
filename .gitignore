@@ -7,8 +7,6 @@ data/*.db-shm
 data/*.db-wal
 *.log
 .DS_Store
-AGENTS.md
-CLAUDE.md
 __pycache__/
 *.pyc
 scraper/ofertas_encontradas.*

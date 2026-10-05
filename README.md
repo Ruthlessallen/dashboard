@@ -107,6 +107,10 @@ Se editan en [`lib/feeds.js`](lib/feeds.js): una entrada por fuente (`id`, `name
 
 Hacker News no usa RSS: se consulta la API de Algolia filtrando por puntuación mínima y palabras clave, configurables al final del mismo fichero.
 
+## Para agentes de IA
+
+[`AGENTS.md`](AGENTS.md) explica cómo funciona el scraper, el dashboard y el sistema de ofertas y postulaciones, y qué hay que preguntar a la persona usuaria antes de ejecutar el scraper (`CLAUDE.md` apunta al mismo archivo).
+
 ## Seguridad y privacidad
 
 - Ninguna credencial está hardcodeada: todas se leen de variables de entorno (`.env.local`, excluido de git).

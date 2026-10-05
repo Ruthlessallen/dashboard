@@ -72,7 +72,7 @@ npm run setup   # crea .env.local, scraper/config.json y los CSV; instala las de
 npm run dev
 ```
 
-Se abre en <http://localhost:3111> (en Windows también puedes hacer doble clic en `dashboard-start.bat`). `setup` es idempotente: nunca pisa lo que ya tienes, y `npm run dev` lo ejecuta antes de arrancar. Sin configurar nada ya funcionan las noticias, las checklists y las postulaciones; Gmail y Calendar necesitan las credenciales de abajo, y el scraper se configura en [`scraper/config.json`](scraper/README.md).
+Se abre en <http://localhost:3111> (en Windows, `powershell -ExecutionPolicy Bypass -File scriptscrear-acceso-directo.ps1` crea un acceso directo «Dashboard» en el Escritorio que lo enciende y abre el navegador; si ya está encendido, solo abre el navegador). `setup` es idempotente: nunca pisa lo que ya tienes, y `npm run dev` lo ejecuta antes de arrancar. Sin configurar nada ya funcionan las noticias, las checklists y las postulaciones; Gmail y Calendar necesitan las credenciales de abajo, y el scraper se configura en [`scraper/config.json`](scraper/README.md).
 
 ## Configurar integraciones (opcional)
 

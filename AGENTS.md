@@ -20,7 +20,7 @@ Panel personal en local (Next.js 16 + SQLite nativo + un scraper de ofertas en P
 4. **Nunca subas datos personales** (sección 8) ni metas el municipio de casa, nombres o rutas locales en el código. Todo eso va en variables de entorno o en `scraper/config.json`.
 5. **El scraper no usa login, cookies ni claves, y así debe seguir.** No subas el volumen de peticiones ni quites las pausas (sección 4.1).
 6. **Next 16 no es el Next que conoces**: lee la guía en `node_modules/next/dist/docs/` antes de tocar rutas, páginas o configuración.
-7. **Al terminar, cierra tu servidor de desarrollo.** Ocupa el puerto 3111 y la persona usuaria arranca el suyo con `dashboard-start.bat`.
+7. **Al terminar, cierra tu servidor de desarrollo.** Ocupa el puerto 3111 y la persona usuaria arranca el suyo con `dashboard-start.bat` (o con el acceso directo del Escritorio que crea `scripts/crear-acceso-directo.ps1`).
 
 ## 1. Qué es
 

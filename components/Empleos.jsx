@@ -21,6 +21,9 @@ const MODES = [
 ];
 const MODE_LABEL = { remote: 'Remoto', onsite: 'Presencial / híbrido', unknown: 'Modalidad sin confirmar' };
 
+// Tramos del deslizador de competencia (solicitantes). null = sin limite.
+const COMPETENCIA = [10, 25, 50, 100, 200, null];
+
 const SORTS = [
   { id: 'score', label: 'Mejor encaje' },
   { id: 'recent', label: 'Más recientes' },
@@ -62,6 +65,7 @@ export default function Empleos() {
   const [query, setQuery] = useState('');
   const [showDiscarded, setShowDiscarded] = useState(false);
   const [status, setStatus] = useState('pending');
+  const [maxComp, setMaxComp] = useState(COMPETENCIA.length - 1); // indice en COMPETENCIA
   const [overrides, setOverrides] = useState({}); // url -> 'applied' | 'dismissed' | null
 
   const load = useCallback(async () => {
@@ -127,6 +131,8 @@ export default function Empleos() {
       if (mode !== 'all' && i.mode !== mode) return false;
       if (source !== 'all' && i.source !== source) return false;
       if (q && !`${i.title} ${i.company || ''} ${i.location}`.toLowerCase().includes(q)) return false;
+      const limite = COMPETENCIA[maxComp];
+      if (limite != null && i.solicitantes != null && i.solicitantes > limite) return false;
       return true;
     });
     const byDate = (a, b) => new Date(b.postedAt || 0) - new Date(a.postedAt || 0);
@@ -136,7 +142,7 @@ export default function Empleos() {
       list.sort((a, b) => d(a) - d(b) || b.score - a.score);
     } else list.sort((a, b) => b.score - a.score || byDate(a, b));
     return list;
-  }, [items, overrides, status, role, mode, source, sort, query, showDiscarded]);
+  }, [items, overrides, status, role, mode, source, sort, query, showDiscarded, maxComp]);
 
   return (
     <div className="shell">
@@ -221,6 +227,18 @@ export default function Empleos() {
               <select className="empleos-select" value={sort} onChange={(e) => setSort(e.target.value)}>
                 {SORTS.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
               </select>
+              <label className="empleos-slider" title="Oculta las ofertas con más solicitantes que el límite. Las que no indican cuántos son se muestran siempre.">
+                Competencia máx.
+                <input
+                  type="range"
+                  min="0"
+                  max={COMPETENCIA.length - 1}
+                  step="1"
+                  value={maxComp}
+                  onChange={(e) => setMaxComp(Number(e.target.value))}
+                />
+                <b>{COMPETENCIA[maxComp] == null ? 'sin límite' : `≤ ${COMPETENCIA[maxComp]} solicitantes`}</b>
+              </label>
               <label className="empleos-toggle">
                 <input type="checkbox" checked={showDiscarded} onChange={(e) => setShowDiscarded(e.target.checked)} />
                 Mostrar las filtradas automáticamente ({discardedCount})
@@ -277,7 +295,11 @@ export default function Empleos() {
                   </div>
                 </div>
                 <div className="empleo-actions">
-                  {st ? (
+                  {st && i.stateSource === 'postulaciones' ? (
+                    <span className="muted" style={{ fontSize: 11.5 }} title="Consta en tu CSV de postulaciones, así que no se vuelve a ofrecer">
+                      ya en tus postulaciones
+                    </span>
+                  ) : st ? (
                     <button className="btn ghost" onClick={() => mark(i, null)}>Deshacer</button>
                   ) : (
                     <>

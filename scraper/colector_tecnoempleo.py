@@ -1,5 +1,6 @@
 import requests
 from config import CONFIG
+from clave_oferta import clave_oferta
 from bs4 import BeautifulSoup
 import re
 import random
@@ -179,12 +180,13 @@ def obtener_detalle_tecnoempleo(url_oferta, nombre_categoria="Tecnoempleo Direct
         print(f"Error parseando detalle Tecnoempleo ({url_oferta}): {e}")
         return None
 
-def extraer_ofertas_tecnoempleo():
+def extraer_ofertas_tecnoempleo(claves_saltar=None):
     """
     Recorre las categorías de Tecnoempleo, extrae el detalle de cada vacante y filtra las ofertas aptas.
     """
     ofertas = []
     urls_vistas = set()
+    claves_saltar = claves_saltar or set()
     
     for url_cat in URLS_CATEGORIAS_TECNOEMPLEO:
         try:
@@ -206,6 +208,10 @@ def extraer_ofertas_tecnoempleo():
                 urls_vistas.add(href)
                 url_completa = href if href.startswith('http') else f"https://www.tecnoempleo.com{href}"
                 
+                # Ya en el CSV o ya revisada en el dashboard: ni se pide (menos peticiones, menos riesgo de bloqueo)
+                if clave_oferta(url_completa) in claves_saltar:
+                    continue
+
                 # Pausa humana respetuosa entre peticiones
                 pausa_organica_profunda(min_sec=3.0, max_sec=6.0)
                 

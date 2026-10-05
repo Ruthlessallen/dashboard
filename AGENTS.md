@@ -60,7 +60,9 @@ components/                             Dashboard (rejilla de 5 columnas redimen
                                         Empleos, Checklists, News, Google (Agenda y Correo), util.js
 lib/db.js                               SQLite (esquema, migraciones sencillas, reinicio de la lista diaria)
 lib/empleos.js                          CSV del scraper -> ofertas puntuadas y filtradas
-lib/postulaciones.js                    CSV de postulaciones + marcadas en /empleos + mis decisiones
+lib/postulaciones.js, postulaciones-csv.js   CSV de postulaciones + marcadas en /empleos + mis decisiones
+lib/ofertas-clave.js                    identificador de oferta a partir del enlace (ver 4.3)
+lib/ignoradas.js                        escribe la lista de ofertas que el scraper no debe traer
 lib/scraper-runner.js                   lanza el scraper en segundo plano con límites
 lib/google.js, feeds.js, news.js        Google, fuentes RSS, agregador
 scraper/                                scraper de ofertas (Python) y su configuración
@@ -75,6 +77,7 @@ scraper (Python) --> scraper/ofertas_encontradas.csv --> lib/empleos.js --> /api
         ^                                                                       |  "Ya apliqué"
         | lib/scraper-runner.js  <-- POST /api/empleos/actualizar               v
         |    (al abrir "/" y botón)                                     tabla empleo_estado
+        +<-- scraper/ofertas_ignoradas.json (lib/ignoradas.js, justo antes de lanzar)
                                                                                 |
 data/postulaciones.csv ---------------------------------> lib/postulaciones.js <+--> tabla postulacion_estado
                                                                 |
@@ -83,7 +86,7 @@ data/postulaciones.csv ---------------------------------> lib/postulaciones.js <
 
 ### 4.1 Scraper (`scraper/`)
 
-- Punto de entrada: `ejecutar_todos_colectores.py` (Tecnoempleo + LinkedIn). `ejecutar_busquedas.py` hace las búsquedas de LinkedIn y escribe el CSV; `colector_tecnoempleo.py` recorre las categorías; `linkedin_scraper_avanzado.py` tiene peticiones, filtros y su propia puntuación (`puntuacion_encaje`, que **el dashboard ignora a propósito**); `config.py` carga `config.json` (o `config.example.json`).
+- Punto de entrada: `ejecutar_todos_colectores.py` (Tecnoempleo + LinkedIn). `ejecutar_busquedas.py` hace las búsquedas de LinkedIn y escribe el CSV; `colector_tecnoempleo.py` recorre las categorías; `linkedin_scraper_avanzado.py` tiene peticiones, filtros y su propia puntuación (`puntuacion_encaje`, que **el dashboard ignora a propósito**); `config.py` carga `config.json` (o `config.example.json`); `clave_oferta.py` e `ignoradas.py` implementan la lista de ofertas ignoradas (4.3).
 - **Sin login ni cookies:** LinkedIn por su API pública de invitados (`jobs-guest/.../seeMoreJobPostings/search` y `.../jobPosting/{id}`) y Tecnoempleo por páginas abiertas.
 - **Ritmo deliberadamente lento:** pausas de 6-12 s entre ofertas, 8-15 s entre páginas, 12-25 s entre búsquedas, 3-6 s por oferta en Tecnoempleo; ante 429/403 espera `45 s × intento` y reintenta. Una pasada completa con muchas ofertas nuevas tarda **más de una hora de reloj**; si el PC se duerme, el proceso se queda parado y continúa al despertar. Las siguientes pasadas son más cortas porque deduplican por `job_id`.
 - Escribe el CSV fila a fila (`job_id, fecha_escaneo, busqueda_origen, titulo, empresa, ubicacion, modalidad, experiencia_requerida, solicitantes, url, fecha_relativa, puntuacion_encaje, tecnologias, resumen_descripcion`). `inicializar_csv()` lo crea con cabecera si falta. La descripción se guarda completa.
@@ -105,11 +108,15 @@ Lee el CSV (cacheado por fecha de modificación), procesa cada fila (`processRow
 - Cercanía: distancia en línea recta desde `JOBS_HOME_TOWN` usando las coordenadas aproximadas de `PLACES` (~50 municipios; si falta uno, se puntúa neutro: añádelo).
 - Las filas antiguas de Tecnoempleo que solo traían el título se detectan por su contenido (`generic`) y no pasan de 70 puntos.
 - "Ya apliqué" / "Borrar" guardan en `empleo_estado` (con copia de los datos de la oferta).
+- **Identificador de oferta (`claveOferta`, `lib/ofertas-clave.js`):** `li:<id>` (LinkedIn), `te:<rf-…>` (Tecnoempleo), `ij:<of-i…>` (InfoJobs), `in:<jk>` (Indeed) o, si no, `url:<host><ruta>?<parámetros sin rastreo>`. Sirve para reconocer la misma oferta aunque el enlace cambie de forma. **`scraper/clave_oferta.py` debe dar exactamente lo mismo**: si tocas uno, toca el otro y compáralos con las URLs reales (hubo 376 con 0 diferencias).
+- Las marcas se buscan por ese identificador, no por el enlace exacto. Las ofertas que ya constan en `postulaciones.csv` salen como "ya en tus postulaciones" (`stateSource: 'postulaciones'`): Enviada/Pendiente → aplicada, Descartado → borrada, No enviado → sin estado; no se pueden deshacer desde aquí porque la fuente es el CSV.
+- **Lo que borras o aplicas no vuelve:** antes de cada ejecución `lib/ignoradas.js` escribe `scraper/ofertas_ignoradas.json` con las claves de `empleo_estado` (aplicadas y borradas) y de todo `postulaciones.csv`; el scraper no pide ni siquiera el detalle de esas ofertas (LinkedIn y Tecnoempleo; en Tecnoempleo salta también las que ya están en su CSV). Si lanzas Python a mano se usa la última lista escrita.
+- **Competencia:** el deslizador de `/empleos` oculta las ofertas con más solicitantes que el límite (≤10, 25, 50, 100, 200 o sin límite); las que no indican cuántos son se muestran siempre.
 
 ### 4.4 Postulaciones (`lib/postulaciones.js`, `components/Postulaciones.jsx`)
 
 - Fuente 1: `data/postulaciones.csv` (o `POSTULACIONES_CSV_PATH`), columnas `Fecha,Empresa,Puesto,Link,Fase,Observaciones`. Las observaciones **no van entrecomilladas y llevan comas**, así que no sirve un lector CSV normal: se localiza la columna Fase por la primera observación que empieza por "Encaje", si no por una fase conocida, si no por el enlace `http`; las líneas sueltas se pegan a la anterior. Fases: `Descartado`, `No enviado`, `Pendiente`, `Enviada`.
-- Fuente 2: ofertas marcadas "Ya apliqué" en `/empleos` (sin duplicar las que ya estén en el CSV por URL o id de LinkedIn).
+- Fuente 2: ofertas marcadas "Ya apliqué" en `/empleos`. Se reconocen por `claveOferta`, así que no se duplican con las que ya estén en el CSV aunque el enlace tenga otra forma (también dentro del propio CSV: se queda la más reciente).
 - Mi decisión manda sobre la Fase: `postulacion_estado` guarda `active` ("Sigo adelante") o `rejected` ("Descartada") con la clave `url` o `fecha|empresa|puesto`. Las `active` se muestran aunque pasen de la ventana de días; las descartadas quedan tras un filtro. Ventana de 7/14/30 días y contador de días desde la fecha.
 - Prácticas/empleo, lugar y horario se infieren del título y de las observaciones (y de `/empleos` si la oferta está allí); lo que no conste queda vacío, no se inventa.
 
@@ -153,7 +160,8 @@ Si te piden cambiarla: pregunta qué no le convence, propón 2-3 variantes concr
 
 ## 7. Verificar cambios
 
-- **Servidor sin lanzar el scraper** (Git Bash): `JOBS_SCRAPER_DIR=/ruta/inexistente npm run dev`. La primera petición a cada ruta compila y tarda unos segundos: espera antes de dar algo por roto.
+- **Antes de arrancar tu servidor, mira si el puerto 3111 ya está ocupado** (`netstat -ano | grep :3111`). Si la persona usuaria tiene el suyo encendido, tu `npm run dev` falla con `EADDRINUSE` **sin que lo notes** y tus pruebas acaban contra su servidor y sus datos reales (y su servidor puede lanzar el scraper). Usa otro puerto: `JOBS_SCRAPER_DIR=/ruta/inexistente npx next dev -p 3112`. Comprueba siempre el log de arranque.
+- **Servidor sin lanzar el scraper** (Git Bash): `JOBS_SCRAPER_DIR=/ruta/inexistente` delante del comando. La primera petición a cada ruta compila y tarda unos segundos: espera antes de dar algo por roto.
 - **Probar las librerías sin servidor:** `JOBS_HOME_TOWN="..." node --input-type=module -e "import { loadEmpleos } from './lib/empleos.js'; console.log(loadEmpleos().items.length)"`. Para casos concretos, escribe un CSV pequeño en una carpeta temporal y apunta `JOBS_CSV_PATH` a él (entrecomilla las descripciones con comas).
 - **Interfaz:** comprueba en el navegador lo que toques (filtros, botones, persistencia tras recargar) y deja los datos como estaban: deshaz las marcas de prueba.
 - **Desde cero:** copia a una carpeta temporal solo lo que se subiría (`git ls-files -co --exclude-standard`) y ejecuta `node scripts/setup.mjs`.
@@ -161,7 +169,7 @@ Si te piden cambiarla: pregunta qué no le convence, propón 2-3 variantes concr
 
 ## 8. Datos que nunca se suben
 
-Están en `.gitignore`: `.env.local`, `scraper/config.json`, `scraper/ofertas_encontradas.*`, `scraper/estado.json`, `scraper/ultima_ejecucion.log`, `data/*.db*`, `data/postulaciones.csv`. Antes de cada commit comprueba con `git status` y busca rutas locales, el municipio de casa, correos o claves en lo que subes. El repo es público.
+Están en `.gitignore`: `.env.local`, `scraper/config.json`, `scraper/ofertas_encontradas.*`, `scraper/estado.json`, `scraper/ultima_ejecucion.log`, `scraper/ofertas_ignoradas.json`, `data/*.db*`, `data/postulaciones.csv`. Antes de cada commit comprueba con `git status` y busca rutas locales, el municipio de casa, correos o claves en lo que subes. El repo es público.
 
 ## 9. Limitaciones conocidas
 

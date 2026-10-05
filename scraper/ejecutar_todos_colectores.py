@@ -2,7 +2,8 @@ import os
 import csv
 import json
 from datetime import datetime
-from ejecutar_busquedas import ejecutar_escaneo_organico, cargar_ids_existentes, guardar_ofertas_csv, inicializar_csv
+from ejecutar_busquedas import ejecutar_escaneo_organico, cargar_ids_existentes, cargar_claves_existentes, guardar_ofertas_csv, inicializar_csv
+from ignoradas import cargar_claves_ignoradas
 from colector_tecnoempleo import extraer_ofertas_tecnoempleo
 
 def ejecutar_colectores_unificados():
@@ -17,7 +18,7 @@ def ejecutar_colectores_unificados():
     
     # 1. Escanear Tecnoempleo
     print("\n[TECNOEMPLEO] Escaneando ofertas de Tecnoempleo...")
-    ofertas_tecno = extraer_ofertas_tecnoempleo()
+    ofertas_tecno = extraer_ofertas_tecnoempleo(claves_saltar=cargar_claves_ignoradas() | cargar_claves_existentes())
     nuevas_tecno = []
     for of in ofertas_tecno:
         if of['job_id'] not in ids_existentes:

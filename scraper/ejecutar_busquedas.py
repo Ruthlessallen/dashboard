@@ -1,5 +1,7 @@
 import os
 from config import CONFIG
+from clave_oferta import clave_oferta
+from ignoradas import cargar_claves_ignoradas
 import csv
 import json
 import time
@@ -47,6 +49,22 @@ def inicializar_csv():
         with open(CSV_FILE, mode='w', newline='', encoding='utf-8-sig') as f:
             csv.DictWriter(f, fieldnames=CAMPOS_CSV).writeheader()
 
+def cargar_claves_existentes():
+    """
+    Claves (clave_oferta) de las ofertas ya guardadas en el CSV, por su enlace.
+    """
+    claves = set()
+    if os.path.exists(CSV_FILE):
+        try:
+            with open(CSV_FILE, mode='r', encoding='utf-8-sig') as f:
+                for row in csv.DictReader(f):
+                    clave = clave_oferta(row.get('url'))
+                    if clave:
+                        claves.add(clave)
+        except Exception as e:
+            print(f"Aviso al leer CSV existente: {e}")
+    return claves
+
 def guardar_ofertas_csv(nuevas_ofertas):
     """
     Guarda las nuevas ofertas deduplicadas en el archivo CSV unificado.
@@ -89,6 +107,8 @@ def ejecutar_escaneo_organico(limite_por_busqueda=25, paginas_max=6):
     
     ids_existentes = cargar_ids_existentes()
     print(f"IDs previamente registrados en CSV: {len(ids_existentes)}")
+    claves_ignoradas = cargar_claves_ignoradas()
+    print(f"Ofertas ya revisadas en el dashboard (se saltan): {len(claves_ignoradas)}")
     
     ofertas_capturadas = []
     fecha_hoy = datetime.now().strftime("%Y-%m-%d %H:%M")
@@ -113,6 +133,11 @@ def ejecutar_escaneo_organico(limite_por_busqueda=25, paginas_max=6):
                 print(f"   [DEDUPLICADA] {oferta['titulo']} @ {oferta['empresa']} ya estaba en BBDD.")
                 continue
                 
+            # YA REVISADA EN EL DASHBOARD (aplicada, borrada o ya en postulaciones)
+            if clave_oferta(oferta['url']) in claves_ignoradas:
+                print(f"   [IGNORADA] {oferta['titulo']} @ {oferta['empresa']} ya la revisaste en el dashboard.")
+                continue
+
             ids_existentes.add(job_id)
             
             # Pausa natural ultra-segura imitando lectura humana (6 a 12 seg)

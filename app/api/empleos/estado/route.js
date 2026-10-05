@@ -1,10 +1,21 @@
 import { getDb } from '@/lib/db.js';
 import { loadEmpleos } from '@/lib/empleos.js';
 import { esPracticas } from '@/lib/postulaciones.js';
+import { claveOferta } from '@/lib/ofertas-clave.js';
 
 export const dynamic = 'force-dynamic';
 
 const STATES = ['applied', 'dismissed'];
+
+// Borra todas las marcas de esa oferta (misma oferta aunque el enlace sea distinto)
+function borrarMarcas(db, url) {
+  const clave = claveOferta(url);
+  for (const r of db.prepare('SELECT url FROM empleo_estado').all()) {
+    if (r.url === url || (clave && claveOferta(r.url) === clave)) {
+      db.prepare('DELETE FROM empleo_estado WHERE url = ?').run(r.url);
+    }
+  }
+}
 
 // state: 'applied' | 'dismissed' | null (null = deshacer)
 export async function POST(req) {
@@ -13,11 +24,12 @@ export async function POST(req) {
 
   const db = getDb();
   if (state === null) {
-    db.prepare('DELETE FROM empleo_estado WHERE url = ?').run(url);
+    borrarMarcas(db, url);
   } else if (STATES.includes(state)) {
     // Guardamos una copia de la oferta: la tarjeta Postulaciones la sigue mostrando
     // aunque el scraper regenere el CSV y la oferta ya no este.
-    const oferta = loadEmpleos().items.find((i) => i.url === url);
+    const clave = claveOferta(url);
+    const oferta = loadEmpleos().items.find((i) => i.url === url || (clave && i.clave === clave));
     const data = oferta
       ? JSON.stringify({
           title: oferta.title,
@@ -28,9 +40,9 @@ export async function POST(req) {
           practicas: esPracticas(oferta.title, ''),
         })
       : null;
+    borrarMarcas(db, url);
     db.prepare(
-      `INSERT INTO empleo_estado (url, state, data, updated_at) VALUES (?, ?, ?, datetime('now', 'localtime'))
-       ON CONFLICT(url) DO UPDATE SET state = excluded.state, data = excluded.data, updated_at = excluded.updated_at`
+      "INSERT INTO empleo_estado (url, state, data, updated_at) VALUES (?, ?, ?, datetime('now', 'localtime'))"
     ).run(url, state, data);
   } else {
     return Response.json({ error: 'Estado no valido' }, { status: 400 });

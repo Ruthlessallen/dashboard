@@ -37,6 +37,10 @@ Tarda entre 20 y 40 minutos: hace pausas largas a propósito entre peticiones. S
 
 Si arrancas el dashboard (`npm run dev`), **lo lanza solo en segundo plano al abrirlo**: como mucho cada 12 h, nunca dos a la vez y con espera de 24 h si un portal limita las peticiones. Estado y log en `estado.json` y `ultima_ejecucion.log`.
 
+## Ofertas que no deben volver
+
+El dashboard escribe `ofertas_ignoradas.json` justo antes de lanzar el scraper con las ofertas que ya has aplicado o borrado y las de tu CSV de postulaciones. El scraper las salta antes de pedir su detalle (menos peticiones, menos riesgo de bloqueo). Se reconocen por un identificador sacado del enlace (`clave_oferta.py`), así que da igual que el enlace tenga otra forma. Si lo ejecutas a mano se usa la última lista escrita.
+
 ## Archivos
 
 - `ejecutar_todos_colectores.py`: punto de entrada (Tecnoempleo + LinkedIn)
@@ -44,3 +48,4 @@ Si arrancas el dashboard (`npm run dev`), **lo lanza solo en segundo plano al ab
 - `colector_tecnoempleo.py`: recorrido de Tecnoempleo
 - `linkedin_scraper_avanzado.py`: peticiones, filtros y puntuación del scraper
 - `config.py`: carga `config.json` (o el ejemplo)
+- `clave_oferta.py`, `ignoradas.py`: identificador de oferta y lista de ofertas ignoradas

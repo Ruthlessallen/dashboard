@@ -15,3 +15,4 @@ scraper/ofertas_encontradas.*
 scraper/estado.json
 scraper/ultima_ejecucion.log
 scraper/config.json
+data/postulaciones.csv

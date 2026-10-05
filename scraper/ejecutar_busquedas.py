@@ -33,6 +33,20 @@ def cargar_ids_existentes():
             print(f"Aviso al leer CSV existente: {e}")
     return ids
 
+CAMPOS_CSV = [
+    'job_id', 'fecha_escaneo', 'busqueda_origen', 'titulo', 'empresa',
+    'ubicacion', 'modalidad', 'experiencia_requerida', 'solicitantes', 'url', 'fecha_relativa',
+    'puntuacion_encaje', 'tecnologias', 'resumen_descripcion'
+]
+
+def inicializar_csv():
+    """
+    Crea el CSV con su cabecera si todavía no existe (primer uso).
+    """
+    if not os.path.exists(CSV_FILE):
+        with open(CSV_FILE, mode='w', newline='', encoding='utf-8-sig') as f:
+            csv.DictWriter(f, fieldnames=CAMPOS_CSV).writeheader()
+
 def guardar_ofertas_csv(nuevas_ofertas):
     """
     Guarda las nuevas ofertas deduplicadas en el archivo CSV unificado.
@@ -41,11 +55,7 @@ def guardar_ofertas_csv(nuevas_ofertas):
         return
 
     file_exists = os.path.exists(CSV_FILE)
-    fieldnames = [
-        'job_id', 'fecha_escaneo', 'busqueda_origen', 'titulo', 'empresa', 
-        'ubicacion', 'modalidad', 'experiencia_requerida', 'solicitantes', 'url', 'fecha_relativa', 
-        'puntuacion_encaje', 'tecnologias', 'resumen_descripcion'
-    ]
+    fieldnames = CAMPOS_CSV
 
     with open(CSV_FILE, mode='a', newline='', encoding='utf-8-sig') as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)
@@ -75,6 +85,7 @@ def ejecutar_escaneo_organico(limite_por_busqueda=25, paginas_max=6):
     Ejecuta el escaneo con movimiento orgánico humano, deduplicación y pausas naturales.
     """
     print("=== INICIANDO ESCANEO ORGÁNICO SEGURO DE LAS BÚSQUEDAS CONFIGURADAS ===")
+    inicializar_csv()
     
     ids_existentes = cargar_ids_existentes()
     print(f"IDs previamente registrados en CSV: {len(ids_existentes)}")

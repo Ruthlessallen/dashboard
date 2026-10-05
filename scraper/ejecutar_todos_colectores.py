@@ -2,7 +2,7 @@ import os
 import csv
 import json
 from datetime import datetime
-from ejecutar_busquedas import ejecutar_escaneo_organico, cargar_ids_existentes, guardar_ofertas_csv
+from ejecutar_busquedas import ejecutar_escaneo_organico, cargar_ids_existentes, guardar_ofertas_csv, inicializar_csv
 from colector_tecnoempleo import extraer_ofertas_tecnoempleo
 
 def ejecutar_colectores_unificados():
@@ -10,6 +10,7 @@ def ejecutar_colectores_unificados():
     Ejecuta la extracción masiva deduplicada a través de LinkedIn, Tecnoempleo y portales complementarios.
     """
     print("=== INICIANDO EXTRACCION UNIFICADA MULTIPLATAFORMA ===")
+    inicializar_csv()
     
     ids_existentes = cargar_ids_existentes()
     print(f"Base de datos actual contiene {len(ids_existentes)} ofertas previas.")

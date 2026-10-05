@@ -4,15 +4,18 @@ import { useCallback, useEffect, useState } from 'react';
 
 const RANGES = [7, 14, 30];
 const FASE = {
+  active: { label: 'Sigo adelante', cls: 'on' },
   sent: { label: 'Enviada', cls: 'on' },
   pending: { label: 'Pendiente', cls: 'warn' },
   unsent: { label: 'No enviada', cls: '' },
+  discarded: { label: 'Descartada', cls: 'off' },
   other: { label: null, cls: '' },
 };
 
 export default function Postulaciones() {
   const [days, setDays] = useState(14);
   const [showUnsent, setShowUnsent] = useState(false);
+  const [showRejected, setShowRejected] = useState(false);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
 
@@ -33,18 +36,23 @@ export default function Postulaciones() {
     return () => clearInterval(t);
   }, [load]);
 
-  const undo = async (i) => {
-    await fetch('/api/empleos/estado', {
+  const post = async (url, body) => {
+    await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url: i.url, state: null }),
+      body: JSON.stringify(body),
     }).catch(() => {});
     load();
   };
+  // state: 'active' (sigo adelante) | 'rejected' (me han descartado) | null (quitar mi marca)
+  const mark = (i, state) => post('/api/postulaciones/estado', { key: i.key, state });
+  // Quitar una marcada desde Empleos (en realidad no la envié)
+  const unapply = (i) => post('/api/empleos/estado', { url: i.url, state: null });
 
   const all = data?.items || [];
   const unsentCount = all.filter((i) => i.fase === 'unsent').length;
-  const items = all.filter((i) => showUnsent || i.fase !== 'unsent');
+  const rejectedCount = all.filter((i) => i.fase === 'discarded').length;
+  const items = all.filter((i) => (i.fase === 'discarded' ? showRejected : i.fase === 'unsent' ? showUnsent : true));
 
   return (
     <div className="card">
@@ -66,6 +74,11 @@ export default function Postulaciones() {
             No enviadas · {unsentCount}
           </button>
         )}
+        {rejectedCount > 0 && (
+          <button className={`chip${showRejected ? ' active' : ''}`} onClick={() => setShowRejected((v) => !v)}>
+            Descartadas · {rejectedCount}
+          </button>
+        )}
       </div>
 
       <div className="body" style={{ maxHeight: 600 }}>
@@ -73,14 +86,14 @@ export default function Postulaciones() {
         {data && items.length === 0 && (
           <div className="empty">
             Ninguna postulación activa en los últimos {days} días.<br />
-            <span style={{ fontSize: 12 }}>Marca ofertas con «Ya apliqué» en Empleos o indica un CSV en <code>POSTULACIONES_CSV_PATH</code>.</span>
+            <span style={{ fontSize: 12 }}>Marca ofertas con «Ya apliqué» en Empleos o añádelas a <code>data/postulaciones.csv</code>.</span>
           </div>
         )}
 
         {items.map((i) => {
           const fase = FASE[i.fase] || FASE.other;
           return (
-            <div key={`${i.fecha}-${i.empresa}-${i.puesto}-${i.url || ''}`} className="post">
+            <div key={i.key} className={`post${i.fase === 'discarded' ? ' discarded' : ''}`}>
               <div className={`post-days${i.daysAgo === 0 ? ' today' : ''}`} title={`Postulada el ${i.fecha}`}>
                 {i.daysAgo === 0 ? (
                   <b>Hoy</b>
@@ -102,9 +115,6 @@ export default function Postulaciones() {
                   <span className={`badge ${fase.cls}`}>{fase.label || i.faseTexto}</span>
                   <span className="badge">{i.practicas ? 'Prácticas' : 'Empleo'}</span>
                   {i.modalidad && <span className="badge">{i.modalidad}</span>}
-                  {i.origen === 'dashboard' && (
-                    <button className="post-undo" onClick={() => undo(i)} title="Marcada desde Empleos. Quitarla de postulaciones">Deshacer</button>
-                  )}
                 </div>
                 {(i.lugar || i.horario) && (
                   <div className="post-meta">
@@ -112,6 +122,18 @@ export default function Postulaciones() {
                     {i.horario && <div>🕒 {i.horario}</div>}
                   </div>
                 )}
+                <div className="post-actions">
+                  {i.fase !== 'active' && (
+                    <button className="post-btn ok" onClick={() => mark(i, 'active')} title="Me han contestado / sigo en el proceso">✓ Sigo adelante</button>
+                  )}
+                  {i.fase !== 'discarded' && (
+                    <button className="post-btn bad" onClick={() => mark(i, 'rejected')} title="Me han descartado">✕ Descartada</button>
+                  )}
+                  {i.estado && <button className="post-undo" onClick={() => mark(i, null)}>Deshacer</button>}
+                  {i.origen === 'dashboard' && !i.estado && (
+                    <button className="post-undo" onClick={() => unapply(i)} title="Marcada desde Empleos: quitarla si en realidad no la envié">Quitar</button>
+                  )}
+                </div>
                 {i.notas && (
                   <details className="post-notes">
                     <summary>Notas</summary>

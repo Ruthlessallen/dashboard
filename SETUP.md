@@ -1,4 +1,4 @@
-# Setup: Google + Ofertas de empleo
+# Setup: Google y ofertas de empleo
 
 ## 1. Google OAuth (Gmail + Calendar)
 
@@ -32,37 +32,15 @@ Es el único paso manual. Una vez hecho, se autoguarda.
 
 ---
 
-## 2. Manfred (Ofertas tech)
+## 2. Ofertas de empleo
 
-No requiere configuración: el panel de ofertas de Manfred carga solo, vía su API pública.
-
----
-
-## 3. LinkedIn → Gmail (Lo que tienes que leer)
-
-Esta es la vía **sin riesgo** para no perder ofertas de LinkedIn:
-
-1. En LinkedIn, abre **Mis empleos → Alertas de empleo**
-2. Crea dos alertas:
-   - "Desarrollador junior" en Barcelona
-   - "Data junior" en Barcelona
-   (O lo que se ajuste a tu búsqueda)
-3. La frecuencia: **diaria** o **al momento** — LinkedIn te las envía por correo
-4. **Gmail las recoge automáticamente** (ya estás conectado)
-5. El dashboard lee esos correos y los saca en el panel de Ofertas
-
----
-
-## Cronograma sugerido
-
-**Hoy**:
-- Google OAuth (10 min)
-- Crear las alertas de empleo en LinkedIn (2 min)
+Las gestiona el scraper de `scraper/` (sin login ni credenciales). Ver [scraper/README.md](scraper/README.md).
 
 ---
 
 ## Si algo falla
 
 - `npm run dev` sin salida: error al compilar. Mira `stderr`.
-- Ofertas de LinkedIn vacías: revisa que hayas creado alertas de empleo y que Gmail esté conectado.
-- Gmail sin conectar: copia `.env.local.example` a `.env.local` si no lo has hecho.
+- Gmail sin conectar: ejecuta `npm run setup` para crear `.env.local` y rellénalo.
+- Gmail da `invalid_grant`: el token ha caducado; pulsa **Conectar con Google**.
+- El scraper no arranca: comprueba que Python está instalado (`PYTHON_BIN` en `.env.local` si no se llama `python`) y ejecuta `npm run setup`.

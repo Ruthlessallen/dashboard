@@ -4,8 +4,11 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "setup": "node scripts/setup.mjs",
+    "predev": "node scripts/setup.mjs --quiet",
     "dev": "next dev -p 3111",
     "build": "next build",
+    "prestart": "node scripts/setup.mjs --quiet",
     "start": "next start -p 3111"
   },
   "dependencies": {

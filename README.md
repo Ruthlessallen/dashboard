@@ -1,6 +1,6 @@
 # Dashboard
 
-Panel personal en local que unifica Gmail, Google Calendar, agregador de noticias de IA/data/web, ofertas de empleo y checklists en una sola pantalla.
+Panel personal en local que unifica Gmail, Google Calendar, agregador de noticias de IA/data/web, seguimiento de ofertas y postulaciones y checklists en una sola pantalla.
 
 ![Vista del dashboard](dashboard.png)
 
@@ -12,7 +12,7 @@ Sustituye la rutina de abrir Gmail, Calendar, varias webs de noticias y una list
 
 - **Gmail + Google Calendar**: lectura de correo y agenda vía OAuth2 (permisos de solo lectura, `gmail.readonly` / `calendar.readonly`).
 - **Agregador de noticias**: fuentes RSS configurables por categoría (IA / data / web) + Hacker News vía la API de Algolia, filtrado por puntuación y palabras clave. Caché de 15 minutos y aviso si alguna fuente falla.
-- **Postulaciones**: seguimiento de las candidaturas de las últimas 2 semanas desde un CSV propio (empresa, puesto, canal, fase, prácticas o empleo, lugar y horario si constan) con los días transcurridos desde cada una. Configura `POSTULACIONES_CSV_PATH` en `.env.local`.
+- **Postulaciones**: seguimiento de las candidaturas de las últimas 2 semanas (empresa, puesto, canal, fase, prácticas o empleo, lugar y horario si constan) con los días transcurridos desde cada una. Se alimenta de `data/postulaciones.csv` (se crea solo) y de las ofertas que marcas «Ya apliqué» en Empleos. Con un botón indicas si sigues adelante o te han descartado.
 - **Empleos (`/empleos`)**: lee el CSV de un scraper propio en Python (LinkedIn y Tecnoempleo, páginas públicas sin login ni cookies) y lo puntúa con criterios propios: rol, cercanía, nivel junior, frescura y competencia. Descarta senior, titulaciones no relacionadas y ofertas antiguas. El scraper vive en [`scraper/`](scraper/README.md) (configurable con `scraper/config.json`) y se lanza solo en segundo plano al abrir el dashboard: máx. cada 12 h, nunca dos a la vez y con espera larga si un portal limita las peticiones.
 - **Checklists**: listas fijas (General, Diaria con reinicio automático) y listas personalizadas ilimitadas.
 - **Datos 100% locales**: todo se persiste en SQLite en disco; los tokens OAuth nunca salen del equipo.
@@ -24,10 +24,11 @@ Sustituye la rutina de abrir Gmail, Calendar, varias webs de noticias y una list
 | Framework | [Next.js](https://nextjs.org/) 16 (App Router) |
 | UI | [React](https://react.dev/) 19 |
 | Base de datos | SQLite vía el módulo nativo [`node:sqlite`](https://nodejs.org/api/sqlite.html) de Node 24 — sin drivers externos ni compilación nativa |
-| Integraciones | [`googleapis`](https://www.npmjs.com/package/googleapis) (OAuth2, Gmail API, Calendar API), [`rss-parser`](https://www.npmjs.com/package/rss-parser), API pública de Manfred, API de Algolia (Hacker News) |
+| Integraciones | [`googleapis`](https://www.npmjs.com/package/googleapis) (OAuth2, Gmail API, Calendar API), [`rss-parser`](https://www.npmjs.com/package/rss-parser), API de Algolia (Hacker News) |
+| Scraper | Python 3.10+ con [`requests`](https://pypi.org/project/requests/) y [`beautifulsoup4`](https://pypi.org/project/beautifulsoup4/) |
 | Runtime | Node.js 24+ |
 
-Proyecto 100% JavaScript (JSX), sin dependencias de UI de terceros: estilos con CSS plano y componentes React hechos a mano.
+Dashboard en JavaScript (JSX), sin dependencias de UI de terceros: estilos con CSS plano y componentes React hechos a mano.
 
 ## Arquitectura
 
@@ -38,7 +39,8 @@ app/
     auth/                   flujo OAuth2 con Google
     gmail/, calendar/       lectura de Gmail y Calendar
     news/                   agregador RSS + Hacker News
-    jobs/                   ofertas de InfoJobs
+    empleos/                ofertas del scraper (puntuadas) y su estado
+    postulaciones/          seguimiento de candidaturas
     checklists/, items/     CRUD de checklists
 
 lib/
@@ -46,29 +48,35 @@ lib/
   google.js                 OAuth2 + llamadas a Gmail y Calendar
   feeds.js                  fuentes de noticias (config declarativa)
   news.js                   agregador RSS + Hacker News, con caché
-  jobs.js, linkedin-jobs.js integración de ofertas de empleo
+  empleos.js                CSV del scraper -> ofertas puntuadas y filtradas
+  postulaciones.js          CSV de postulaciones + las marcadas en Empleos
+  scraper-runner.js         lanza el scraper en segundo plano con límites
+
+scraper/                    scraper de ofertas en Python (ver su README)
+scripts/setup.mjs           prepara .env.local, config y CSV si faltan
 
 components/                 UI en React (cliente)
 ```
 
 Cada integración externa (Gmail, Calendar, noticias, empleo) vive detrás de su propia ruta de API en `app/api/`, que a su vez delega en un módulo de `lib/`. El estado de la app (checklists, tokens, caché de eventos) se guarda en una única base SQLite en `data/`.
 
-## Arrancar en local
+## Puesta en marcha
+
+Necesitas Node 24+ y, solo para el scraper, Python 3.10+.
 
 ```bash
+git clone https://github.com/Ruthlessallen/dashboard.git
+cd dashboard
 npm install
+npm run setup   # crea .env.local, scraper/config.json y los CSV; instala las dependencias de Python
 npm run dev
 ```
 
-Se abre en <http://localhost:3111>. Sin configurar nada, ya funcionan las noticias y las checklists.
+Se abre en <http://localhost:3111> (en Windows también puedes hacer doble clic en `dashboard-start.bat`). `setup` es idempotente: nunca pisa lo que ya tienes, y `npm run dev` lo ejecuta antes de arrancar. Sin configurar nada ya funcionan las noticias, las checklists y las postulaciones; Gmail y Calendar necesitan las credenciales de abajo, y el scraper se configura en [`scraper/config.json`](scraper/README.md).
 
 ## Configurar integraciones (opcional)
 
-Copia la plantilla de variables de entorno:
-
-```bash
-cp .env.local.example .env.local
-```
+Las variables de entorno van en `.env.local` (`npm run setup` lo crea a partir de `.env.local.example`).
 
 ### Gmail y Calendar (Google OAuth)
 
@@ -91,7 +99,7 @@ Los permisos son solo de lectura: el dashboard no puede enviar correo ni modific
 
 ### Ofertas de empleo
 
-Manfred funciona sin configurar nada (API pública). Para LinkedIn, crea alertas de empleo en LinkedIn (**Mis empleos → Alertas de empleo**) con frecuencia diaria o al momento: el dashboard lee esos correos directamente de tu Gmail ya conectado y extrae las ofertas.
+Las busca el [scraper](scraper/README.md), que se lanza solo al abrir el dashboard (máx. cada 12 h). Para verlas y puntuarlas a tu medida, indica tu municipio en `.env.local` (`JOBS_HOME_TOWN`) para valorar la cercanía; el resto de variables opcionales están comentadas en `.env.local.example`.
 
 ### Fuentes de noticias
 

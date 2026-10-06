@@ -101,12 +101,13 @@ data/postulaciones.csv ---------------------------------> lib/postulaciones.js <
 
 ### 4.3 `/empleos` (`lib/empleos.js`, `components/Empleos.jsx`)
 
-Lee el CSV (cacheado por fecha de modificación), procesa cada fila (`processRow`) y devuelve ofertas con `score`, `breakdown`, `checks` (semáforo por criterio: rol, nivel, zona, fecha, competencia), `flags` y `excludedReason`. Las descartadas automáticamente no se borran: se ven con el interruptor "Mostrar las filtradas automáticamente". Orden de descarte: senior/semi/responsable en el título → reservada a personas con discapacidad → pide ≥3 años (o "2+") → pide titulación no relacionada con informática/datos → rol que no es data/IA/backend/software → publicada hace más de 6 meses.
+Lee el CSV (cacheado por fecha de modificación), procesa cada fila (`processRow`) y devuelve ofertas con `score`, `breakdown`, `checks` (semáforo por criterio: rol, nivel, zona, fecha, competencia), `flags` y `excludedReason`. Las descartadas automáticamente no se borran: se ven con el interruptor "Mostrar las filtradas automáticamente". Orden de descarte: senior/semi/responsable en el título → reservada a personas con discapacidad → presencial/híbrido a más de 50 km de casa o en una ciudad de fuera de Barcelona → fila con solo el título → pide ≥3 años (o "2+") → pide titulación no relacionada con informática/datos → rol que no es data/IA/backend/software → publicada hace más de 6 meses.
 
-- Experiencia: en un rango cuenta el **tope** ("2 a 3 años" → 3); se ignoran cifras >10 y frases sobre la historia de la empresa.
+- Experiencia: en un rango cuenta el **tope** ("2 a 3 años" → 3); se ignoran cifras >10 y frases sobre la historia de la empresa (solo si van en la misma oración: "we are looking for 3+ years" sí cuenta). Solo cuentan los años que van junto a "experiencia" o con "mínimo / al menos / +N / o más", también escritos con letras ("tres años de experiencia"); "tras 3 años" o "hace tres años" no.
+- Lugar: solo se descarta si la modalidad es presencial/híbrido (no la ambigua "Presencial/Híbrido/Remoto" ni el remoto). Con `JOBS_HOME_TOWN` se usa la distancia (`FAR_KM`, 50 km, igual que donde `zonePoints` da 0); si el sitio no está en `PLACES`, se descarta si el nombre es de una ciudad de `RE_OUTSIDE_PLACE` (Tecnoempleo escribe "Madrid (Barcelona)": la ciudad real y, entre paréntesis, la categoría de búsqueda).
 - Titulación: `RE_UNREL` (matemáticas, física, ADE, economía, marketing…) frente a `RE_REL` (informática, datos, IA…) dentro de ventanas que empiezan por "grado/degree/licenciatura/máster…". Con descripciones completas puede haber falsos positivos: la página muestra el motivo para que se revisen.
 - Cercanía: distancia en línea recta desde `JOBS_HOME_TOWN` usando las coordenadas aproximadas de `PLACES` (~50 municipios; si falta uno, se puntúa neutro: añádelo).
-- Las filas antiguas de Tecnoempleo que solo traían el título se detectan por su contenido (`generic`) y no pasan de 70 puntos.
+- Las filas antiguas de Tecnoempleo que solo traían el título se detectan por su contenido (`generic`) y se descartan automáticamente: sin descripción ni lugar no se puede comprobar ni la experiencia ni que sean de Barcelona (las categorías `python`, `data-analyst`... de Tecnoempleo son de toda España). Siguen visibles con el interruptor. Para recuperarlas con detalle hay que borrar esas filas del CSV y lanzar el scraper (el colector salta las que ya constan).
 - "Ya apliqué" / "Borrar" guardan en `empleo_estado` (con copia de los datos de la oferta).
 - **Identificador de oferta (`claveOferta`, `lib/ofertas-clave.js`):** `li:<id>` (LinkedIn), `te:<rf-…>` (Tecnoempleo), `ij:<of-i…>` (InfoJobs), `in:<jk>` (Indeed) o, si no, `url:<host><ruta>?<parámetros sin rastreo>`. Sirve para reconocer la misma oferta aunque el enlace cambie de forma. **`scraper/clave_oferta.py` debe dar exactamente lo mismo**: si tocas uno, toca el otro y compáralos con las URLs reales (hubo 376 con 0 diferencias).
 - Las marcas se buscan por ese identificador, no por el enlace exacto. Las ofertas que ya constan en `postulaciones.csv` salen como "ya en tus postulaciones" (`stateSource: 'postulaciones'`): Enviada/Pendiente → aplicada, Descartado → borrada, No enviado → sin estado; no se pueden deshacer desde aquí porque la fuente es el CSV.
@@ -159,7 +160,7 @@ La persona usuaria no confía en una nota única y la considera totalmente subje
 | Frescura (`freshnessPoints`) | 20 | ≤3 d 20, ≤7 d 17, ≤14 d 14, ≤30 d 10, ≤60 d 6, ≤120 d 3, más 0 |
 | Competencia (`competitionPenalty`) | −15 | solicitantes ≤10: 0, ≤25: −3, ≤50: −7, ≤100: −11, más: −15 |
 
-Tope de 70 para ofertas solo con título. Marca "Para graduados universitarios" en programas "graduate/new grad" (no cuentan como junior).
+Las ofertas solo con título quedan descartadas (ver 4.3), así que el tope de 70 que se les aplica solo afecta si se muestran. Marca "Para graduados universitarios" en programas "graduate/new grad" (no cuentan como junior).
 
 Si te piden cambiarla: pregunta qué no le convence, propón 2-3 variantes concretas, aplícalas y enséñale el top 10 real antes/después. No cambies pesos "porque sí".
 

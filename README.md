@@ -10,7 +10,7 @@ Sustituye la rutina de abrir Gmail, Calendar, varias webs de noticias y una list
 
 ## Características
 
-- **Gmail + Google Calendar**: lectura de correo y agenda vía OAuth2 (permisos de solo lectura, `gmail.readonly` / `calendar.readonly`).
+- **Gmail + Google Calendar**: lectura del correo (`gmail.readonly`) y de la agenda, con permiso para crear y borrar eventos desde el propio dashboard (`calendar.events`), vía OAuth2.
 - **Agregador de noticias**: fuentes RSS configurables por categoría (IA / data / web) + Hacker News vía la API de Algolia, filtrado por puntuación y palabras clave. Caché de 15 minutos y aviso si alguna fuente falla.
 - **Postulaciones**: seguimiento de las candidaturas de las últimas 2 semanas (empresa, puesto, canal, fase, prácticas o empleo, lugar y horario si constan) con los días transcurridos desde cada una. Se alimenta de `data/postulaciones.csv` (se crea solo) y de las ofertas que marcas «Ya apliqué» en Empleos. Con un botón indicas si sigues adelante o te han descartado.
 - **Empleos (`/empleos`)**: lee el CSV de un scraper propio en Python (LinkedIn y Tecnoempleo, páginas públicas sin login ni cookies) y lo puntúa con criterios propios: rol, cercanía, nivel junior, frescura y competencia. Descarta senior, titulaciones no relacionadas y ofertas antiguas. El scraper vive en [`scraper/`](scraper/README.md) (configurable con `scraper/config.json`) y se lanza solo en segundo plano al abrir el dashboard: máx. cada 12 h, nunca dos a la vez y con espera larga si un portal limita las peticiones.
@@ -95,7 +95,7 @@ Las variables de entorno van en `.env.local` (`npm run setup` lo crea a partir d
    ```
 6. Reinicia `npm run dev` y pulsa **Conectar Google**.
 
-Los permisos son solo de lectura: el dashboard no puede enviar correo ni modificar la agenda.
+El correo es de solo lectura: el dashboard no puede enviar mensajes. En el Calendar puede crear y borrar eventos (los que añades con «+ Evento» o arrastrando algo a la agenda), no editar los demás.
 
 ### Ofertas de empleo
 
@@ -115,4 +115,4 @@ Hacker News no usa RSS: se consulta la API de Algolia filtrando por puntuación 
 
 - Ninguna credencial está hardcodeada: todas se leen de variables de entorno (`.env.local`, excluido de git).
 - Los tokens OAuth de Google se guardan en la base SQLite local (no sale del equipo, pero no está cifrada) y nunca se envían a ningún servidor externo.
-- Los permisos solicitados a Google son de solo lectura.
+- Permisos de Google: Gmail solo lectura; Calendar, eventos (leer, crear y borrar los que crea el dashboard).

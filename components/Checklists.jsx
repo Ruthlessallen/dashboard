@@ -37,7 +37,9 @@ function AddItem({ checklistId, onAdd }) {
   );
 }
 
-function List({ list, items, setItems, dragItem, setDragItem, moveItem, refresh, dragListId, setDragListId, reorderLists, listOverId, setListOverId }) {
+function List({ list, items, setItems, dragItem, setDragItem, moveItem, refresh, dragListId, setDragListId, reorderLists, listOverId, setListOverId, onRename }) {
+  const [renaming, setRenaming] = useState(false);
+  const [nameDraft, setNameDraft] = useState('');
   const [overIdx, setOverIdx] = useState(null);
   const [overEnd, setOverEnd] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -128,6 +130,17 @@ function List({ list, items, setItems, dragItem, setDragItem, moveItem, refresh,
     }
   }
 
+  function startRename() {
+    setNameDraft(list.name);
+    setRenaming(true);
+  }
+
+  function finishRename(save) {
+    const clean = nameDraft.trim().slice(0, 60);
+    setRenaming(false);
+    if (save && clean && clean !== list.name) onRename(list.id, clean, list.name);
+  }
+
   async function removeList() {
     if (!confirm(`¿Borrar la lista "${list.name}" y sus ${items.length} tareas?`)) return;
     await api(`/api/checklists/${list.id}`, { method: 'DELETE' });
@@ -196,7 +209,27 @@ function List({ list, items, setItems, dragItem, setDragItem, moveItem, refresh,
         >
           ▾
         </button>
-        <h2>{list.name}</h2>
+        {renaming ? (
+          <input
+            type="text"
+            className="list-rename"
+            autoFocus
+            value={nameDraft}
+            maxLength={60}
+            onClick={(e) => e.stopPropagation()}
+            onChange={(e) => setNameDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') finishRename(true);
+              if (e.key === 'Escape') finishRename(false);
+            }}
+            onBlur={() => finishRename(true)}
+          />
+        ) : (
+          <>
+            <h2 onDoubleClick={(e) => { e.stopPropagation(); startRename(); }} title="Doble clic para cambiar el nombre">{list.name}</h2>
+            <button className="btn ghost" onClick={(e) => { e.stopPropagation(); startRename(); }} title="Cambiar nombre" style={{ padding: '2px 6px' }}>✎</button>
+          </>
+        )}
         {list.kind === 'daily' && <span className="badge">se reinicia cada día</span>}
         <span className="spacer" />
         <span className="muted" style={{ fontSize: 12 }}>
@@ -382,6 +415,20 @@ export default function Checklists({ lists, refresh }) {
     refresh();
   }
 
+  // Nombres nuevos mostrados al instante mientras el servidor responde
+  const [names, setNames] = useState({});
+  useEffect(() => { setNames({}); }, [lists]);
+
+  async function renameList(id, name, previous) {
+    setNames((n) => ({ ...n, [id]: name }));
+    try {
+      await api(`/api/checklists/${id}`, { method: 'PATCH', body: JSON.stringify({ name }) });
+      refresh();
+    } catch {
+      setNames((n) => ({ ...n, [id]: previous }));
+    }
+  }
+
   const listsById = new Map(lists.map((l) => [l.id, l]));
   const orderedLists = listOrder.map((id) => listsById.get(id)).filter(Boolean);
 
@@ -390,7 +437,8 @@ export default function Checklists({ lists, refresh }) {
       {orderedLists.map((l) => (
         <List
           key={l.id}
-          list={l}
+          list={names[l.id] ? { ...l, name: names[l.id] } : l}
+          onRename={renameList}
           items={itemsByList[l.id] || []}
           setItems={setItemsFor(l.id)}
           dragItem={dragItem}

@@ -5,6 +5,7 @@ import { GmailCard, CalendarCard } from './Google.jsx';
 import Postulaciones from './Postulaciones.jsx';
 import News from './News.jsx';
 import Checklists from './Checklists.jsx';
+import NuevoEvento from './NuevoEvento.jsx';
 
 const NEWS_POLL_MS = 15 * 60 * 1000;
 const GOOGLE_POLL_MS = 5 * 60 * 1000;
@@ -18,6 +19,7 @@ export default function Dashboard() {
   const [refreshingNews, setRefreshingNews] = useState(false);
   const [draggedItem, setDraggedItem] = useState(null);
   const [agendaModal, setAgendaModal] = useState(null);
+  const [nuevoEvento, setNuevoEvento] = useState(null); // { date } mientras el formulario esta abierto
   const [agendaView, setAgendaView] = useState('upcoming');
   const [agendaDate, setAgendaDate] = useState(new Date());
   const [draggedEvents, setDraggedEvents] = useState([]);
@@ -215,6 +217,7 @@ export default function Dashboard() {
             onDateChange={setAgendaDate}
             onDrop={handleDrop}
             onDeleteDragged={deleteFromAgenda}
+            onAddEvent={(date) => setNuevoEvento({ date })}
           />
         </div>
 
@@ -244,6 +247,14 @@ export default function Dashboard() {
       </div>
 
       {/* Modal para añadir a Agenda */}
+      {nuevoEvento && (
+        <NuevoEvento
+          date={nuevoEvento.date}
+          onClose={() => setNuevoEvento(null)}
+          onSaved={() => { loadDraggedEvents(); loadGoogle(); }}
+        />
+      )}
+
       {agendaModal && (
         <div
           style={{

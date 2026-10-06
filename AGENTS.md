@@ -42,7 +42,7 @@ Variables (`.env.local`, plantilla en `.env.local.example`; todas opcionales sal
 
 | Variable | Para qué |
 |---|---|
-| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI` | OAuth de Gmail y Calendar (solo lectura) |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI` | OAuth de Gmail (solo lectura) y Calendar (`calendar.events`: leer, crear y borrar eventos) |
 | `JOBS_HOME_TOWN` | Municipio de casa: puntúa la cercanía en `/empleos` y se suma a `zonas_aceptadas` del scraper |
 | `JOBS_SCRAPER_DIR` | Carpeta del scraper (por defecto `./scraper`) |
 | `JOBS_CSV_PATH` | CSV de ofertas (por defecto `<scraper>/ofertas_encontradas.csv`) |
@@ -120,7 +120,12 @@ Lee el CSV (cacheado por fecha de modificación), procesa cada fila (`processRow
 - Mi decisión manda sobre la Fase: `postulacion_estado` guarda `active` ("Sigo adelante") o `rejected` ("Descartada") con la clave `url` o `fecha|empresa|puesto`. Las `active` se muestran aunque pasen de la ventana de días; las descartadas quedan tras un filtro. Ventana de 7/14/30 días y contador de días desde la fecha.
 - Prácticas/empleo, lugar y horario se infieren del título y de las observaciones (y de `/empleos` si la oferta está allí); lo que no conste queda vacío, no se inventa.
 
-### 4.5 SQLite (`data/dashboard.db`)
+### 4.5 Agenda y checklists
+
+- **Añadir un evento:** botón «+ Evento» de la tarjeta Agenda → `components/NuevoEvento.jsx` (título, día, hora o todo el día) → `POST /api/events`, que lo crea en el Google Calendar real (`createCalendarEvent`, dura 1 h por defecto) y guarda una copia en `dragged_events` (`source: 'manual'`). Si Google falla (sin conexión, permisos), la respuesta trae `googleError` y el formulario lo avisa en vez de cerrarse. El ✕ de la agenda lo borra de los dos sitios (`DELETE /api/events`). Arrastrar una tarea, noticia u oferta a la agenda usa el mismo endpoint.
+- **Renombrar una lista:** ✎ o doble clic en el título → `PATCH /api/checklists/[id]` con `{ name }` (la misma ruta admite `position`). Enter o salir del campo guarda, Esc cancela, el vacío no guarda; el nombre nuevo se ve al instante y se revierte si falla. Vale para todas las listas, también General y Diario.
+
+### 4.6 SQLite (`data/dashboard.db`)
 
 `checklists`, `items` (listas y tareas, con `position`), `kv` (tokens de Google), `dragged_events` (eventos arrastrados a la agenda), `empleo_estado` (`applied`/`dismissed` + copia JSON de la oferta), `postulacion_estado` (`active`/`rejected`). Las migraciones se hacen con `CREATE TABLE IF NOT EXISTS` y `ALTER TABLE` condicional en `lib/db.js`.
 
@@ -160,7 +165,7 @@ Si te piden cambiarla: pregunta qué no le convence, propón 2-3 variantes concr
 
 ## 7. Verificar cambios
 
-- **Antes de arrancar tu servidor, mira si el puerto 3111 ya está ocupado** (`netstat -ano | grep :3111`). Si la persona usuaria tiene el suyo encendido, tu `npm run dev` falla con `EADDRINUSE` **sin que lo notes** y tus pruebas acaban contra su servidor y sus datos reales (y su servidor puede lanzar el scraper). Usa otro puerto: `JOBS_SCRAPER_DIR=/ruta/inexistente npx next dev -p 3112`. Comprueba siempre el log de arranque.
+- **Mira si la persona usuaria ya tiene su servidor encendido** (`netstat -ano | grep :3111`). Next **no deja arrancar un segundo `next dev` en la misma carpeta** (aunque uses otro puerto: «Another next dev server is already running»), y tu `npm run dev` falla con `EADDRINUSE` sin que lo notes. Comprueba siempre el log de arranque. Si el suyo está encendido, ya recompila tus cambios solo: pruebas contra él, es decir **contra sus datos reales**. Entonces: deja todo como estaba (deshaz marcas, renombrados y similares), intercepta `window.fetch` para las escrituras hacia fuera (p. ej. `POST /api/events` crea eventos en su Google Calendar real) y mira `scraper/estado.json` antes de abrir `/`: si no está corriendo ni en espera, la página lanza el scraper.
 - **Servidor sin lanzar el scraper** (Git Bash): `JOBS_SCRAPER_DIR=/ruta/inexistente` delante del comando. La primera petición a cada ruta compila y tarda unos segundos: espera antes de dar algo por roto.
 - **Probar las librerías sin servidor:** `JOBS_HOME_TOWN="..." node --input-type=module -e "import { loadEmpleos } from './lib/empleos.js'; console.log(loadEmpleos().items.length)"`. Para casos concretos, escribe un CSV pequeño en una carpeta temporal y apunta `JOBS_CSV_PATH` a él (entrecomilla las descripciones con comas).
 - **Interfaz:** comprueba en el navegador lo que toques (filtros, botones, persistencia tras recargar) y deja los datos como estaban: deshaz las marcas de prueba.

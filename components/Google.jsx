@@ -56,7 +56,7 @@ export function GmailCard({ data }) {
   );
 }
 
-export function CalendarCard({ data, draggedEvents = [], onViewChange, onDateChange, onDrop, onDeleteDragged }) {
+export function CalendarCard({ data, draggedEvents = [], onViewChange, onDateChange, onDrop, onDeleteDragged, onAddEvent }) {
   const [view, setView] = useState('upcoming');
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [search, setSearch] = useState('');
@@ -227,6 +227,7 @@ export function CalendarCard({ data, draggedEvents = [], onViewChange, onDateCha
           <option value="month">Mes</option>
         </select>
         <span className="spacer" />
+        <button className="btn ghost" onClick={() => onAddEvent?.(selectedDate)} title="Crear un evento en la agenda">+ Evento</button>
         {connected && (
           <a className="btn ghost" href="/api/auth/google" title="Vuelve a conceder permisos si arrastrar a la agenda no crea el evento en tu Google Calendar real">
             Reconectar

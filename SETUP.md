@@ -28,7 +28,7 @@ Es el único paso manual. Una vez hecho, se autoguarda.
      ```
 5. Reinicia `npm run dev` y pulsa **Conectar Google** en el dashboard.
 
-**Los permisos**: solo lectura. El token se guarda en tu SQLite local, no sale del ordenador.
+**Los permisos**: Gmail solo lectura; Calendar puede leer, crear y borrar eventos (los que añades desde el dashboard). El token se guarda en tu SQLite local, no sale del ordenador.
 
 ---
 

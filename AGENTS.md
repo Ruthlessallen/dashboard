@@ -61,6 +61,8 @@ components/                             Dashboard (rejilla de 5 columnas redimen
 lib/db.js                               SQLite (esquema, migraciones sencillas, reinicio de la lista diaria)
 lib/empleos.js                          CSV del scraper -> ofertas puntuadas y filtradas
 lib/postulaciones.js, postulaciones-csv.js   CSV de postulaciones + marcadas en /empleos + mis decisiones
+lib/ofertas-abiertas.js                     Comprueba en segundo plano (tabla oferta_cerrada) si las ofertas de LinkedIn siguen
+                                            aceptando solicitudes; las cerradas salen como excluidas ("Cerrada"). Lo lanza GET /api/empleos
 lib/ofertas-clave.js                    identificador de oferta a partir del enlace (ver 4.3)
 lib/ignoradas.js                        escribe la lista de ofertas que el scraper no debe traer
 lib/scraper-runner.js                   lanza el scraper en segundo plano con límites

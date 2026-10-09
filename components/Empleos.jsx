@@ -84,12 +84,14 @@ export default function Empleos() {
   const scraper = data?.scraper;
   const running = Boolean(scraper?.running);
 
-  // Mientras el scraper trabaja, refrescamos para ir viendo las ofertas nuevas
+  const verificando = Boolean(data?.verificacion?.running);
+
+  // Mientras el scraper trabaja (o se comprueba qué ofertas siguen abiertas), refrescamos
   useEffect(() => {
-    if (!running) return;
-    const t = setInterval(load, 20000);
+    if (!running && !verificando) return;
+    const t = setInterval(load, running ? 20000 : 10000);
     return () => clearInterval(t);
-  }, [running, load]);
+  }, [running, verificando, load]);
 
   const updateNow = async () => {
     await fetch('/api/empleos/actualizar', {

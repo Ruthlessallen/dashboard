@@ -197,6 +197,20 @@ export default function Dashboard() {
     }
   };
 
+  const saveEventNote = async (ev, description) => {
+    const local = String(ev.id).startsWith('dragged-');
+    try {
+      await fetch('/api/events', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(local ? { id: ev.draggedId, description } : { googleEventId: ev.id, description }),
+      });
+      await Promise.all([loadDraggedEvents(), loadGoogle()]);
+    } catch (err) {
+      console.error('Error al guardar la nota:', err);
+    }
+  };
+
   const deleteFromAgenda = async (draggedId) => {
     try {
       await fetch(`/api/events?id=${draggedId}`, { method: 'DELETE' });
@@ -217,6 +231,7 @@ export default function Dashboard() {
             onDateChange={setAgendaDate}
             onDrop={handleDrop}
             onDeleteDragged={deleteFromAgenda}
+            onSaveNote={saveEventNote}
             onAddEvent={(date) => setNuevoEvento({ date })}
           />
         </div>

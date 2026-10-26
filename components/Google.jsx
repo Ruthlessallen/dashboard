@@ -56,7 +56,60 @@ export function GmailCard({ data }) {
   );
 }
 
-export function CalendarCard({ data, draggedEvents = [], onViewChange, onDateChange, onDrop, onDeleteDragged, onAddEvent }) {
+const URL_RE = /(https?:\/\/[^\s]+)/g;
+
+/** Texto de un evento: las URLs son enlaces; al pulsar en el texto se edita. */
+function EventNote({ ev, onSave }) {
+  const [editing, setEditing] = useState(false);
+  const [text, setText] = useState('');
+  const stop = (e) => { e.preventDefault(); e.stopPropagation(); };
+  const text0 = ev.description || '';
+
+  const start = (e) => { stop(e); setText(text0); setEditing(true); };
+  const save = () => {
+    setEditing(false);
+    if (text.trim() !== text0.trim()) onSave?.(ev, text);
+  };
+
+  if (editing) {
+    return (
+      <textarea
+        autoFocus
+        rows={2}
+        value={text}
+        placeholder="Descripción o enlace…"
+        onClick={stop}
+        onMouseDown={(e) => e.stopPropagation()}
+        onChange={(e) => setText(e.target.value)}
+        onBlur={save}
+        onKeyDown={(e) => {
+          e.stopPropagation();
+          if (e.key === 'Escape') setEditing(false);
+          if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); e.currentTarget.blur(); }
+        }}
+        style={{ width: '100%', marginTop: 3, fontSize: 12, padding: '4px 6px', border: '1px solid var(--border)', borderRadius: 6, background: 'var(--bg)', color: 'var(--text)', resize: 'vertical' }}
+      />
+    );
+  }
+
+  if (!text0) {
+    return (
+      <div className="snippet" style={{ marginLeft: 70, cursor: 'text', opacity: 0.6 }} onClick={start}>＋ nota</div>
+    );
+  }
+
+  return (
+    <div className="snippet" style={{ marginLeft: 70, cursor: 'text', whiteSpace: 'pre-wrap', wordBreak: 'break-all' }} onClick={start} title="Pulsa para editar">
+      {text0.split(URL_RE).map((part, i) =>
+        /^https?:\/\//.test(part)
+          ? <span key={i} role="link" title={part} onClick={(e) => { stop(e); window.open(part, '_blank', 'noopener'); }} style={{ color: 'var(--accent)', textDecoration: 'underline', cursor: 'pointer' }}>{part.length > 48 ? `${part.slice(0, 45)}…` : part}</span>
+          : part
+      )}
+    </div>
+  );
+}
+
+export function CalendarCard({ data, draggedEvents = [], onViewChange, onDateChange, onDrop, onDeleteDragged, onAddEvent, onSaveNote }) {
   const [view, setView] = useState('upcoming');
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [search, setSearch] = useState('');
@@ -90,6 +143,7 @@ export function CalendarCard({ data, draggedEvents = [], onViewChange, onDateCha
       link: '#',
       meet: false,
       allDay: ev.all_day,
+      description: ev.description || '',
     }));
 
   // Combinar eventos y ordenar cronologicamente (si no, lo arrastrado
@@ -341,6 +395,7 @@ export function CalendarCard({ data, draggedEvents = [], onViewChange, onDateCha
                       {ev.meet && <span className="badge on">Meet</span>}
                     </div>
                     {ev.location && <div className="snippet" style={{ marginLeft: 70 }}>{ev.location}</div>}
+                    <EventNote key={ev.description || ''} ev={ev} onSave={onSaveNote} />
                   </div>
                   {isDeletable && (
                     <button

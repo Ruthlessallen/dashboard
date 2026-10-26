@@ -12,6 +12,7 @@ export default function NuevoEvento({ date, onClose, onSaved }) {
   const [day, setDay] = useState(ymd(date || new Date()));
   const [allDay, setAllDay] = useState(false);
   const [time, setTime] = useState(proximaHora());
+  const [description, setDescription] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
   const [aviso, setAviso] = useState(null);
@@ -37,6 +38,7 @@ export default function NuevoEvento({ date, onClose, onSaved }) {
           event_time: allDay ? null : time,
           all_day: allDay ? 1 : 0,
           source: 'manual',
+          description: description.trim(),
         }),
       }).then((r) => r.json());
       if (res.error) throw new Error(res.error);
@@ -84,6 +86,10 @@ export default function NuevoEvento({ date, onClose, onSaved }) {
               <input type="time" value={time} onChange={(e) => setTime(e.target.value)} className="nuevo-evento-input" />
             </label>
           )}
+          <label style={{ display: 'grid', gap: 4, fontSize: 12, fontWeight: 600 }}>
+            Descripción o enlace (opcional)
+            <textarea rows={2} value={description} onChange={(e) => setDescription(e.target.value)} />
+          </label>
           {error && <div style={{ color: 'var(--red)', fontSize: 12 }}>{error}</div>}
           {aviso && <div style={{ color: 'var(--orange)', fontSize: 12 }}>{aviso}</div>}
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>

@@ -1,5 +1,5 @@
 import { getDb } from '@/lib/db';
-import { createCalendarEvent, deleteCalendarEvent } from '@/lib/google';
+import { createCalendarEvent, deleteCalendarEvent, patchCalendarEvent } from '@/lib/google';
 
 export async function GET(req) {
   try {
@@ -17,7 +17,8 @@ export async function GET(req) {
 export async function POST(req) {
   try {
     const db = getDb();
-    const { title, event_date, event_time, all_day, source } = await req.json();
+    const { title, event_date, event_time, all_day, source, description } = await req.json();
+    const desc = description?.trim() || null;
 
     // Intentamos crear el evento tambien en el Google Calendar real del
     // usuario; si falla (no conectado, scope insuficiente...) seguimos
@@ -30,6 +31,7 @@ export async function POST(req) {
         date: event_date,
         time: event_time,
         allDay: Boolean(all_day),
+        description: desc,
       });
       googleEventId = created.id;
     } catch (err) {
@@ -37,11 +39,43 @@ export async function POST(req) {
     }
 
     db.prepare(`
-      INSERT INTO dragged_events (title, event_date, event_time, all_day, source, google_event_id)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `).run(title, event_date, event_time, all_day ? 1 : 0, source, googleEventId);
+      INSERT INTO dragged_events (title, event_date, event_time, all_day, source, google_event_id, description)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `).run(title, event_date, event_time, all_day ? 1 : 0, source, googleEventId, desc);
 
     return Response.json({ success: true, googleEventId, googleError }, { status: 201 });
+  } catch (e) {
+    console.error(e);
+    return Response.json({ error: e.message }, { status: 500 });
+  }
+}
+
+// Cambia la descripcion (y opcionalmente el titulo) de un evento. Se identifica
+// por googleEventId (vale para cualquier evento de la agenda) o por id local.
+export async function PATCH(req) {
+  try {
+    const db = getDb();
+    const { googleEventId, id, description, title } = await req.json();
+    const desc = description === undefined ? undefined : (description.trim() || null);
+
+    let googleError = null;
+    if (googleEventId) {
+      try {
+        await patchCalendarEvent(googleEventId, {
+          title,
+          description: desc === undefined ? undefined : (desc ?? ''),
+        });
+      } catch (err) {
+        googleError = err.message;
+      }
+    }
+
+    const where = googleEventId ? 'google_event_id = ?' : 'id = ?';
+    const key = googleEventId || Number(id);
+    if (desc !== undefined) db.prepare(`UPDATE dragged_events SET description = ? WHERE ${where}`).run(desc, key);
+    if (title !== undefined) db.prepare(`UPDATE dragged_events SET title = ? WHERE ${where}`).run(title, key);
+
+    return Response.json({ success: !googleError, googleError });
   } catch (e) {
     console.error(e);
     return Response.json({ error: e.message }, { status: 500 });

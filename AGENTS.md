@@ -16,7 +16,7 @@ Panel personal en local (Next.js 16 + SQLite nativo + un scraper de ofertas en P
 
 1. **Antes de ejecutar el scraper, pregunta** (sección 5): ofertas clave, ubicación, nivel, empresas, titulación y cómo quiere puntuar. No lo lances con valores por defecto sin decirlo.
 2. **La puntuación de las ofertas es subjetiva** para la persona usuaria. No la presentes como objetiva ni la "mejores" por tu cuenta: propón variantes, enséñalas con ofertas reales y deja que elija (sección 6).
-3. **Abrir `/` en el navegador lanza el scraper** si existe `scraper/` (lo hace `components/Dashboard.jsx` al montar). Al probar la interfaz usa `JOBS_SCRAPER_DIR` apuntando a una ruta que no exista (sección 7).
+3. **Abrir `/` ya no lanza el scraper** (se quitó de `components/Dashboard.jsx` junto con la tarjeta Postulaciones). Solo lo lanzan el botón "Actualizar ahora" de `/empleos` o una llamada a `POST /api/empleos/actualizar`. Aun así, al probar usa `JOBS_SCRAPER_DIR` apuntando a una ruta que no exista (sección 7).
 4. **Nunca subas datos personales** (sección 8) ni metas el municipio de casa, nombres o rutas locales en el código. Todo eso va en variables de entorno o en `scraper/config.json`.
 5. **El scraper no usa login, cookies ni claves, y así debe seguir.** No subas el volumen de peticiones ni quites las pausas (sección 4.1).
 6. **Next 16 no es el Next que conoces**: lee la guía en `node_modules/next/dist/docs/` antes de tocar rutas, páginas o configuración.
@@ -24,7 +24,7 @@ Panel personal en local (Next.js 16 + SQLite nativo + un scraper de ofertas en P
 
 ## 1. Qué es
 
-Un dashboard de una sola pantalla con: agenda (Google Calendar), checklists, noticias (RSS + Hacker News), correo (Gmail) y **Postulaciones**; más una página `/empleos` con las ofertas que recoge el scraper. Todo el estado vive en local: SQLite en `data/dashboard.db` y los CSV.
+Un dashboard de una sola pantalla con: agenda (Google Calendar), checklists, noticias (RSS + Hacker News), correo (Gmail); más una página `/empleos` con las ofertas que recoge el scraper. Todo el estado vive en local: SQLite en `data/dashboard.db` y los CSV.
 
 Stack: JavaScript/JSX (sin TypeScript, sin librerías de UI, CSS plano en `app/globals.css`), Node 24+ (`node:sqlite`), `googleapis`, `rss-parser`. Scraper: Python 3.10+ con `requests` y `beautifulsoup4`.
 
@@ -56,7 +56,7 @@ Variables (`.env.local`, plantilla en `.env.local.example`; todas opcionales sal
 app/page.jsx, app/empleos/page.jsx     páginas (/ y /empleos)
 app/api/                                rutas: auth, gmail, calendar, news, checklists, items, events,
                                         empleos (+ /actualizar, /estado), postulaciones (+ /estado)
-components/                             Dashboard (rejilla de 5 columnas redimensionables), Postulaciones,
+components/                             Dashboard (rejilla de 4 columnas redimensionables; la tarjeta Postulaciones está oculta, el componente sigue en el repo), Postulaciones,
                                         Empleos, Checklists, News, Google (Agenda y Correo), util.js
 lib/db.js                               SQLite (esquema, migraciones sencillas, reinicio de la lista diaria)
 lib/empleos.js                          CSV del scraper -> ofertas puntuadas y filtradas

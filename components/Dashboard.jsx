@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { GmailCard, CalendarCard } from './Google.jsx';
-import Postulaciones from './Postulaciones.jsx';
 import News from './News.jsx';
 import Checklists from './Checklists.jsx';
 import NuevoEvento from './NuevoEvento.jsx';
@@ -34,7 +33,7 @@ export default function Dashboard() {
   useEffect(() => {
     try {
       const saved = JSON.parse(localStorage.getItem('dashboard-col-widths') || 'null');
-      if (Array.isArray(saved) && saved.length === 5) setColPx(saved);
+      if (Array.isArray(saved) && saved.length === 4) setColPx(saved);
     } catch {}
 
     const mq = window.matchMedia('(min-width: 1201px)');
@@ -116,8 +115,6 @@ export default function Dashboard() {
     loadNews();
     loadLists();
     loadDraggedEvents();
-    // Actualiza las ofertas del scraper al abrir; el servidor decide si toca (cooldown)
-    fetch('/api/empleos/actualizar', { method: 'POST' }).catch(() => {});
     const a = setInterval(loadGoogle, GOOGLE_POLL_MS);
     const b = setInterval(() => loadNews(), NEWS_POLL_MS);
     const c = setInterval(loadDraggedEvents, 30000);
@@ -252,12 +249,6 @@ export default function Dashboard() {
 
         <div className="col area-mail" ref={(el) => { colRefs.current[3] = el; }}>
           <GmailCard data={gmail} />
-        </div>
-
-        {isDesktop && <div className="h4 col-resize-handle" title="Arrastra para ensanchar" onMouseDown={startResize(3)} />}
-
-        <div className="col area-jobs" ref={(el) => { colRefs.current[4] = el; }}>
-          <Postulaciones />
         </div>
       </div>
 

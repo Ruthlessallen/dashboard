@@ -15,3 +15,5 @@ scraper/ultima_ejecucion.log
 scraper/config.json
 data/postulaciones.csv
 scraper/ofertas_ignoradas.json
+
+data/*.md
